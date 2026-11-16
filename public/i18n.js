@@ -101,6 +101,487 @@ export const messages = {
     rulesScore: 'Ұпайлар мен рөлдер', rulesScoreText: 'Дұрыс жауап үшін түсіндіруші мен сөз табушыға 1 ұпайдан беріледі. Мина іске қосылса, сол сөзді қойғандарға 1 ұпайдан беріледі. Әр жүрістен кейін ұпайлар кестесі көрсетіледі. Бір айналымда әркім түсіндіреді және сөз табады. Үштен аз ойыншы қалса, ойын кідіртіледі.'
   }
 };
+
+const spyMessages = {
+  "gameMode": [
+    "Игра",
+    "Game",
+    "Ойын"
+  ],
+  "wordmine": [
+    "Word Mine",
+    "Word Mine",
+    "Word Mine"
+  ],
+  "spy": [
+    "Шпион",
+    "Spy",
+    "Тыңшы"
+  ],
+  "innocent": [
+    "Мирный",
+    "Innocent",
+    "Бейбіт ойыншы"
+  ],
+  "spectator": [
+    "Наблюдатель",
+    "Spectator",
+    "Көрермен"
+  ],
+  "gameHubTitle": [
+    "Слова объединяют.",
+    "Words bring us together.",
+    "Сөздер біріктіреді."
+  ],
+  "gameHubAccent": [
+    "Кому ты доверяешь?",
+    "Who do you trust?",
+    "Кімге сенесің?"
+  ],
+  "gameHubHelp": [
+    "Две игры для компании от 3 человек. Выбирайте игру и приглашайте друзей.",
+    "Two party games for 3 or more. Pick a game and invite your friends.",
+    "3 немесе одан көп адамға арналған екі ойын. Ойынды таңдап, достарыңды шақыр."
+  ],
+  "spyHelp": [
+    "Найди того, кто не знает слово. Ассоциации, подозрения и тайное голосование.",
+    "Find the player who doesn’t know the word. Clues, suspicion, and secret votes.",
+    "Сөзді білмейтін ойыншыны тап. Ассоциациялар, күдік және жасырын дауыс."
+  ],
+  "spyRules": [
+    "Один случайный шпион видит только тему, мирные — слово. По очереди введите по одной ассоциации, затем голосуйте. Большинство больше половины предлагает исключение, ведущий подтверждает. Без большинства — новый круг ассоциаций. Исключённые остаются в комнате. Когда остаются двое, ведущий подтверждает победу шпиона. Он также может завершить раунд после ассоциаций. Мирные получают по 1 очку за поимку шпиона. Незамеченный шпион — 3 очка. Пойманный шпион получает одну попытку угадать слово и 1 очко за верный ответ. Все очки подтверждает ведущий.",
+    "One random spy sees only a topic; innocents see the word. Take turns entering one clue word, then vote. More than half of active players must agree to propose an elimination; the leader confirms it. No majority means another clue cycle. Eliminated players stay in the room. With two players left, the leader confirms the spy’s win. The leader can also end a round after clues. Each innocent gets 1 point for catching the spy. An undetected spy gets 3 points. A caught spy gets one guess and 1 point if correct. The leader confirms all points.",
+    "Кездейсоқ таңдалған бір тыңшы тек тақырыпты, бейбіт ойыншылар сөзді көреді. Кезекпен бір ассоциация енгізіп, дауыс беріңдер. Шығару үшін белсенді ойыншылардың жартысынан көбі дауыс беріп, жүргізуші растауы керек. Көпшілік болмаса, ассоциациялар қайталанады. Шығарылғандар бөлмеде қалады. Екі ойыншы қалса, жүргізуші тыңшының жеңісін растайды. Ассоциациялардан кейін раундты да аяқтай алады. Тыңшы ұсталса, әр бейбіт ойыншыға 1 ұпай. Ұсталмаған тыңшыға 3 ұпай. Ұсталған тыңшы сөзді бір рет таба алады: дұрыс болса, 1 ұпай. Барлық ұпайды жүргізуші растайды."
+  ],
+  "spyRounds": [
+    "Раундов",
+    "Rounds",
+    "Раунд саны"
+  ],
+  "spyDictionary": [
+    "Словарь и подсказки",
+    "Words and hints",
+    "Сөздер мен кеңестер"
+  ],
+  "spyCustomHelp": [
+    "Каждая строка: слово | подсказка. Например: Пицца | Еда. До 60 символов вместе.",
+    "Each line: word | hint. Example: Pizza | Food. Up to 60 characters combined.",
+    "Әр жол: сөз | кеңес. Мысалы: Пицца | Тағам. Барлығы 60 таңбаға дейін."
+  ],
+  "spyHint": [
+    "Твоя подсказка",
+    "Your hint",
+    "Сенің кеңесің"
+  ],
+  "spyKeep": [
+    "Сохраняй роль в тайне. Не показывай экран другим.",
+    "Keep your role secret. Don’t show your screen.",
+    "Рөліңді құпия сақта. Экраныңды көрсетпе."
+  ],
+  "spySpeaking": [
+    "Ассоциации · круг {count}",
+    "Clues · cycle {count}",
+    "Ассоциациялар · айналым {count}"
+  ],
+  "spySpeaker": [
+    "{name} даёт ассоциацию.",
+    "{name} is giving a clue.",
+    "{name} ассоциация береді."
+  ],
+  "spyClue": [
+    "Одна ассоциация",
+    "One clue word",
+    "Бір ассоциация"
+  ],
+  "spySubmit": [
+    "Сказать слово",
+    "Give clue",
+    "Сөз айту"
+  ],
+  "spyVoteTitle": [
+    "Кто шпион?",
+    "Who is the spy?",
+    "Тыңшы кім?"
+  ],
+  "spyVoteHelp": [
+    "Голоса скрыты до конца голосования. Ведущий подтверждает исключение.",
+    "Votes stay hidden until everyone votes. The leader confirms eliminations.",
+    "Барлығы дауыс бергенше дауыстар жасырын. Шығаруды жүргізуші растайды."
+  ],
+  "spyVote": [
+    "Голосовать",
+    "Vote",
+    "Дауыс беру"
+  ],
+  "spyAbstain": [
+    "Никого не исключать",
+    "Skip elimination",
+    "Ешкімді шығармау"
+  ],
+  "spyVoted": [
+    "Твой голос принят.",
+    "Your vote is in.",
+    "Дауысың қабылданды."
+  ],
+  "spyVotes": [
+    "Проголосовали: {count} / {total}",
+    "Votes: {count} / {total}",
+    "Дауыс берді: {count} / {total}"
+  ],
+  "spyCandidate": [
+    "Большинство предлагает исключить: {name}.",
+    "The majority proposes eliminating {name}.",
+    "Көпшілік {name} ойыншысын шығаруды ұсынады."
+  ],
+  "spyNoMajority": [
+    "Большинства нет. Продолжайте ассоциации.",
+    "No majority. Continue with another clue cycle.",
+    "Көпшілік жоқ. Ассоциацияларды жалғастырыңдар."
+  ],
+  "spyEliminate": [
+    "Подтвердить исключение",
+    "Confirm elimination",
+    "Шығаруды растау"
+  ],
+  "spyContinue": [
+    "Продолжить ассоциации",
+    "Continue clues",
+    "Ассоциацияларды жалғастыру"
+  ],
+  "spyUndetected": [
+    "Подтвердить: шпион не найден (+3)",
+    "Confirm: spy undetected (+3)",
+    "Растау: тыңшы ұсталмады (+3)"
+  ],
+  "spyUndetectedConfirm": [
+    "Завершить раунд и дать шпиону 3 очка? Его роль откроется всем.",
+    "End the round and award the spy 3 points? Their role will be revealed.",
+    "Раундты аяқтап, тыңшыға 3 ұпай берілсін бе? Рөлі барлығына ашылады."
+  ],
+  "spyCaught": [
+    "Шпион пойман: {name}",
+    "Spy caught: {name}",
+    "Тыңшы ұсталды: {name}"
+  ],
+  "spyGuessHelp": [
+    "Последний шанс: угадай секретное слово. Ведущий подтвердит ответ.",
+    "One last chance: guess the secret word. The leader confirms the answer.",
+    "Соңғы мүмкіндік: құпия сөзді тап. Жауапты жүргізуші растайды."
+  ],
+  "spyGuessWaiting": [
+    "Ждём единственную попытку шпиона.",
+    "Waiting for the spy’s one guess.",
+    "Тыңшының жалғыз жауабын күтеміз."
+  ],
+  "spyGuessReview": [
+    "Ответ шпиона: «{word}». Ведущий подтверждает точность.",
+    "Spy’s guess: “{word}”. The leader confirms whether it is correct.",
+    "Тыңшының жауабы: «{word}». Дұрыстығын жүргізуші растайды."
+  ],
+  "spyCorrect": [
+    "Верно: мирным +1, шпиону +1",
+    "Correct: innocents +1, spy +1",
+    "Дұрыс: бейбіттерге +1, тыңшыға +1"
+  ],
+  "spyWrong": [
+    "Неверно: только мирным +1",
+    "Incorrect: innocents +1 only",
+    "Қате: тек бейбіттерге +1"
+  ],
+  "spyWin": [
+    "Шпион остался незамеченным",
+    "The spy went undetected",
+    "Тыңшы ұсталмады"
+  ],
+  "spyInnocentWin": [
+    "Мирные нашли шпиона",
+    "The innocents caught the spy",
+    "Бейбіттер тыңшыны тапты"
+  ],
+  "spyIdentity": [
+    "Шпион: {name}",
+    "Spy: {name}",
+    "Тыңшы: {name}"
+  ],
+  "spyAward": [
+    "{name}: +{points}",
+    "{name}: +{points}",
+    "{name}: +{points}"
+  ],
+  "spyEliminated": [
+    "Исключён из раунда",
+    "Eliminated this round",
+    "Раундтан шығарылды"
+  ],
+  "spySpectating": [
+    "Ты присоединишься к следующему раунду.",
+    "You’ll play in the next round.",
+    "Келесі раундқа қатысасың."
+  ],
+  "spyFinalTwo": [
+    "Осталось двое: ведущий подтверждает победу оставшихся скрытых ролей.",
+    "Two players remain: the leader confirms the surviving hidden roles’ win.",
+    "Екі ойыншы қалды: жүргізуші қалған жасырын рөлдердің жеңісін растайды."
+  ]
+};
+for (const [key, values] of Object.entries(spyMessages)) {
+  ['ru', 'en', 'kk'].forEach((lang, index) => { messages[lang][key] = values[index]; });
+}
+
+const homeMessages = {
+  "clubLabel": [
+    "Игры для своих",
+    "Good company. Great games.",
+    "Достарға арналған ойындар"
+  ],
+  "homeLineOne": [
+    "Все в сборе?",
+    "Everyone here?",
+    "Бәрі жиналды ма?"
+  ],
+  "homeLineTwo": [
+    "Начинаем.",
+    "Let’s play.",
+    "Бастаймыз."
+  ],
+  "homeIntro": [
+    "Собери друзей за столом или в звонке.\nДальше — дело за словами.",
+    "Get your people around a table or on a call.\nWe’ll take it from here.",
+    "Достарыңды үстел басына не қоңырауға жина.\nӘрі қарай сөздер сөйлесін."
+  ],
+  "chooseMove": [
+    "Выбери свой ход",
+    "Make your move",
+    "Өз жүрісіңді таңда"
+  ],
+  "joinHeading": [
+    "Есть код?",
+    "Got a code?",
+    "Кодың бар ма?"
+  ],
+  "joinDescription": [
+    "Твои уже внутри. Введи код комнаты и присоединяйся.",
+    "Your friends are waiting. Enter their room code and pull up a chair.",
+    "Достарың сені күтуде. Бөлме кодын енгізіп, қосыл."
+  ],
+  "joinCodeLabel": [
+    "Код от друзей",
+    "Room code from your friends",
+    "Достарыңның бөлме коды"
+  ],
+  "createSpy": [
+    "Создать лобби «Шпион»",
+    "Create Spy lobby",
+    "«Тыңшы» бөлмесін ашу"
+  ],
+  "createWordmine": [
+    "Создать лобби Wordmines",
+    "Create Wordmines lobby",
+    "Wordmines бөлмесін ашу"
+  ],
+  "spyShort": [
+    "Кто-то знает слово.\nКто-то просто делает вид.",
+    "Some know the word.\nOthers are making it up.",
+    "Бірі сөзді біледі.\nБірі білетіндей көрінеді."
+  ],
+  "wordmineShort": [
+    "Объясняй слова. Обходи ловушки.\nУ друзей на тебя свои планы.",
+    "Explain the word. Dodge the traps.\nYour friends have other plans.",
+    "Сөзді түсіндір. Тұзақтардан өт.\nДостарыңның өз жоспары бар."
+  ],
+  "spyCategory": [
+    "Секретные роли",
+    "Secret identities",
+    "Құпия рөлдер"
+  ],
+  "wordmineCategory": [
+    "Слова и ловушки",
+    "Words & traps",
+    "Сөздер мен тұзақтар"
+  ],
+  "joinCategory": [
+    "Вместе с друзьями",
+    "Join your people",
+    "Достарыңа қосыл"
+  ],
+  "playersThree": [
+    "3+ игрока",
+    "3+ players",
+    "3+ ойыншы"
+  ],
+  "noDownloads": [
+    "Без регистрации. Без установки.",
+    "No sign-ups. No downloads.",
+    "Тіркелусіз. Орнатусыз."
+  ],
+  "justFriends": [
+    "Только ты и твои люди.",
+    "Just you and your people.",
+    "Тек сен және достарың."
+  ],
+  "backGames": [
+    "Все игры",
+    "All games",
+    "Барлық ойындар"
+  ],
+  "createIntro": [
+    "Ты будешь ведущим. Пригласи друзей по коду — и можно начинать.",
+    "You’re the leader. Invite your friends with a room code, then start when you’re ready.",
+    "Сен жүргізуші боласың. Достарыңды кодпен шақырып, дайын болғанда баста."
+  ],
+  "joinIntro": [
+    "Осталось представиться. Используй прежний ник, если возвращаешься.",
+    "One last thing: what should we call you? Use your previous nickname if you’re returning.",
+    "Өзіңді таныстыр. Қайта қосылсаң, бұрынғы атыңды қолдан."
+  ],
+  "homeAria": [
+    "Word Mine и Шпион — главная",
+    "Word Mine & Spy — home",
+    "Word Mine және Тыңшы — басты бет"
+  ],
+  "roomRules": [
+    "Правила этого раунда",
+    "How this game works",
+    "Бұл ойынның ережелері"
+  ]
+};
+for (const [key, values] of Object.entries(homeMessages)) {
+  ['ru', 'en', 'kk'].forEach((lang, index) => { messages[lang][key] = values[index]; });
+}
+
+const roleMessages = {
+  "spyCount": [
+    "Шпионов",
+    "Spies",
+    "Тыңшылар саны"
+  ],
+  "mrWhite": [
+    "Мистер Уайт",
+    "Mr. White",
+    "Мистер Уайт"
+  ],
+  "mrWhiteHelp": [
+    "Без слова и подсказки. +5 за победу незамеченным.",
+    "No word. No hint. +5 for winning undetected.",
+    "Сөз де, кеңес те жоқ. Ұсталмай жеңсе: +5."
+  ],
+  "whiteBlank": [
+    "Ни слова. Ни подсказки.",
+    "No word. No hint.",
+    "Сөз де, кеңес те жоқ."
+  ],
+  "whitePlay": [
+    "Слушай ассоциации и импровизируй. Твоя цель — остаться незамеченным.",
+    "Listen to the clues and improvise. Your goal is to stay undetected.",
+    "Ассоциацияларды тыңдап, тапқыр бол. Мақсатың — ұсталмау."
+  ],
+  "roleSetup": [
+    "Состав ролей",
+    "Role lineup",
+    "Рөлдер құрамы"
+  ],
+  "roleSetupHelp": [
+    "Нужен хотя бы один мирный. Изменения между раундами действуют со следующего раунда.",
+    "Keep at least one innocent. Between-round changes apply to the next round.",
+    "Кемінде бір бейбіт ойыншы қажет. Өзгерістер келесі раундта қолданылады."
+  ],
+  "nextRoles": [
+    "Роли следующего раунда",
+    "Next round’s roles",
+    "Келесі раундтың рөлдері"
+  ],
+  "roleCountSummary": [
+    "Шпионов: {count} · Мистер Уайт: {white}",
+    "Spies: {count} · Mr. White: {white}",
+    "Тыңшылар: {count} · Мистер Уайт: {white}"
+  ],
+  "enabled": [
+    "Включён",
+    "On",
+    "Қосулы"
+  ],
+  "disabled": [
+    "Выключен",
+    "Off",
+    "Өшірулі"
+  ],
+  "revealRole": [
+    "Открыть свою роль",
+    "Reveal your role",
+    "Рөліңді аш"
+  ],
+  "revealPrivate": [
+    "Только для твоих глаз",
+    "For your eyes only",
+    "Тек сен үшін"
+  ],
+  "hideRole": [
+    "Скрыть роль",
+    "Hide role",
+    "Рөлді жасыру"
+  ],
+  "innocentsReady": [
+    "Мирные победили. Ведущий подтверждает очки.",
+    "All hidden roles are out. The leader confirms the innocents’ points.",
+    "Барлық жасырын рөлдер шығарылды. Жүргізуші ұпайды растайды."
+  ],
+  "confirmInnocents": [
+    "Подтвердить: мирным по +1",
+    "Confirm: +1 to each innocent",
+    "Растау: әр бейбітке +1"
+  ],
+  "spyBonusCorrect": [
+    "Верно: этому шпиону +1",
+    "Correct: +1 to this spy",
+    "Дұрыс: осы тыңшыға +1"
+  ],
+  "spyBonusWrong": [
+    "Ответ неверный",
+    "Guess is incorrect",
+    "Жауап қате"
+  ],
+  "bonusHelp": [
+    "Бонус сохранится и начислится в конце раунда. Пока остаются скрытые роли, игра продолжается.",
+    "The bonus is recorded and awarded at the end of the round. Play continues while hidden roles remain.",
+    "Бонус раунд соңында беріледі. Жасырын рөлдер қалса, ойын жалғасады."
+  ],
+  "hiddenWin": [
+    "Скрытые роли остались незамеченными",
+    "Hidden roles went undetected",
+    "Жасырын рөлдер ұсталмады"
+  ],
+  "confirmHiddenWin": [
+    "Подтвердить победу скрытых ролей",
+    "Confirm hidden-role win",
+    "Жасырын рөлдердің жеңісін растау"
+  ],
+  "hiddenWinConfirm": [
+    "Завершить раунд? Каждый оставшийся шпион получит 3 очка, Мистер Уайт — 5.",
+    "End the round? Each surviving spy earns 3 points; surviving Mr. White earns 5.",
+    "Раунд аяқталсын ба? Ұсталмаған әр тыңшыға 3, Мистер Уайтқа 5 ұпай."
+  ],
+  "roleRequirements": [
+    "Для этого состава нужно минимум {count} игроков.",
+    "This lineup needs at least {count} players.",
+    "Бұл құрамға кемінде {count} ойыншы қажет."
+  ],
+  "whiteIdentity": [
+    "Мистер Уайт: {name}",
+    "Mr. White: {name}",
+    "Мистер Уайт: {name}"
+  ],
+  "rolesScoring": [
+    "Мирные +1 · Шпионы +3 · Уайт +5",
+    "Innocents +1 · Spies +3 · White +5",
+    "Бейбіттер +1 · Тыңшылар +3 · Уайт +5"
+  ]
+};
+for (const [key, values] of Object.entries(roleMessages)) {
+  ['ru', 'en', 'kk'].forEach((lang, index) => { messages[lang][key] = values[index]; });
+}
+messages.ru.spyRules = 'Настройте роли, затем по очереди давайте по одной ассоциации и голосуйте. Для исключения нужно больше половины голосов активных игроков и подтверждение ведущего. Мирные видят слово, шпионы — подсказку, Мистер Уайт не видит ничего. Пойманный шпион один раз угадывает слово: ведущий может подтвердить бонус +1. Игра продолжается, пока остаются скрытые роли. Мирные получают по +1 после поимки всех. При победе скрытых ролей каждый оставшийся шпион получает +3, Уайт — +5. Все очки подтверждает ведущий. Роли можно менять до игры и между раундами.';
+messages.en.spyRules = 'Configure roles, take turns giving one clue word, then vote. An elimination needs more than half of active votes and leader confirmation. Innocents see the word; spies see a hint; Mr. White sees neither. Each caught spy gets one guess, worth +1 if the leader confirms it. Play continues while hidden roles remain. Innocents earn +1 each after all hidden players are caught. On a hidden-role win, each surviving spy earns +3 and surviving Mr. White earns +5. The leader confirms all points. Role settings can change before play and between rounds.';
+messages.kk.spyRules = 'Рөлдерді баптап, кезекпен бір ассоциация айтып, дауыс беріңдер. Шығару үшін белсенді ойыншылардың жартысынан көбі дауыс беріп, жүргізуші растауы керек. Бейбіттер сөзді, тыңшылар кеңесті көреді, Мистер Уайт ештеңе көрмейді. Ұсталған тыңшы бір рет жауап береді: жүргізуші растаса +1. Жасырын рөлдер қалса, ойын жалғасады. Барлығы ұсталса, әр бейбітке +1. Жасырын рөлдер жеңсе, ұсталмаған әр тыңшыға +3, Уайтқа +5. Барлық ұпайды жүргізуші растайды. Рөлдер ойын алдында және раундтар арасында өзгертіледі.';
 let language = 'ru';
 try { const saved = typeof window === 'undefined' ? null : localStorage.getItem('word-mine-language'); if (Object.hasOwn(languages, saved)) language = saved; } catch {}
 export const getLanguage = () => language;
@@ -118,6 +599,27 @@ export function t(key, values = {}) {
 
 // API messages remain stable for old clients; localize them at the display boundary.
 export const errorMessages = [
+  ["Добавьте хотя бы одного шпиона или Мистера Уайта.", "Add at least one spy or Mr. White.", "Кемінде бір тыңшыны немесе Мистер Уайтты қос."],
+  ["Оставьте хотя бы одно место для мирного игрока.", "Leave at least one place for an innocent.", "Бейбіт ойыншыға кемінде бір орын қалдыр."],
+  ["Недостаточно игроков для выбранных ролей.", "Not enough players for this role lineup.", "Бұл рөлдерге ойыншы саны жеткіліксіз."],
+  ["Меняйте роли между раундами.", "Change roles between rounds.", "Рөлдерді раундтар арасында өзгерт."],
+  ["Число шпионов: от 0 до 1000000.", "Spies: from 0 to 1,000,000.", "Тыңшылар саны: 0–1 000 000."],
+
+  ["Неизвестная игра.", "Unknown game.", "Белгісіз ойын."],
+  ["Для каждого слова шпиона укажите: слово | подсказка.", "Use word | hint for each custom Spy word.", "Әр тыңшы сөзі үшін сөз | кеңес пішімін қолдан."],
+  ["Дождитесь своей очереди для ассоциации.", "Wait for your clue turn.", "Ассоциация айту кезегіңді күт."],
+  ["Введите одну ассоциацию до 40 символов без пробелов.", "Enter one clue word, up to 40 characters.", "Бос орынсыз, 40 таңбаға дейін бір ассоциация енгіз."],
+  ["Нельзя называть секретное слово.", "Do not say the secret word.", "Құпия сөзді айтуға болмайды."],
+  ["Сейчас голосуют только активные игроки.", "Only active players can vote now.", "Қазір тек белсенді ойыншылар дауыс бере алады."],
+  ["Это голосование уже завершено.", "This ballot has changed.", "Бұл дауыс беру аяқталды."],
+  ["Выберите другого активного игрока или пропустите голос.", "Choose another active player or skip.", "Басқа белсенді ойыншыны таңда немесе дауыс беруді өткізіп жібер."],
+  ["Вы уже проголосовали.", "You have already voted.", "Сен дауыс беріп қойдың."],
+  ["Дождитесь голосов всех игроков.", "Wait for everyone to vote.", "Барлық ойыншылардың дауысын күт."],
+  ["Сначала завершите ассоциации.", "Finish the clues before ending the round.", "Алдымен ассоциацияларды аяқтаңдар."],
+  ["Только пойманный шпион может дать один ответ.", "Only the caught spy can guess once.", "Тек ұсталған тыңшы бір рет жауап бере алады."],
+  ["Дождитесь ответа шпиона.", "Wait for the spy to guess.", "Тыңшының жауабын күт."],
+  ["Подтвердите, верен ли ответ.", "Confirm whether the guess is correct.", "Жауаптың дұрыстығын раста."],
+
   ['Запрос с другого сайта запрещён.', 'Requests from another site are not allowed.', 'Басқа сайттан сұрау жіберуге болмайды.'],
   ['Запрос слишком большой.', 'The request is too large.', 'Сұрау тым үлкен.'],
   ['Неверный формат запроса.', 'Invalid request format.', 'Сұрау пішімі қате.'],

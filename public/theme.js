@@ -14,7 +14,7 @@
   function applyTheme() {
     const theme = preference || (systemTheme.matches ? 'dark' : 'light');
     document.documentElement.dataset.theme = theme;
-    document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#09150f' : '#f6f4eb';
+    document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#20211f' : '#f2f0e9';
     const toggle = document.getElementById('theme-toggle');
     if (toggle) {
       toggle.setAttribute('aria-pressed', String(theme === 'dark'));

@@ -158,3 +158,10 @@ export const KK_WORDS = `
 `.trim().split(/\s+/).map(word => word.replaceAll('_', ' '));
 
 export const DICTIONARIES = { ru: WORDS, en: EN_WORDS, kk: KK_WORDS };
+
+// Curated word/topic pairs keep the spy hint useful without revealing the answer.
+export const SPY_WORDS = {
+  ru: `Пицца|Еда;Суши|Еда;Шоколад|Десерт;Мороженое|Десерт;Кофе|Напиток;Лимонад|Напиток;Пингвин|Животное;Тигр|Животное;Дельфин|Животное;Пчела|Насекомое;Самолёт|Транспорт;Поезд|Транспорт;Велосипед|Транспорт;Пляж|Отдых;Кинотеатр|Развлечения;Библиотека|Общественное место;Больница|Общественное место;Школа|Образование;Гитара|Музыка;Пианино|Музыка;Футбол|Спорт;Шахматы|Игра;Радуга|Природа;Вулкан|Природа;Снеговик|Зима;Зонт|Погода;Телескоп|Наука;Робот|Технологии;Ключ|Быт;Чемодан|Путешествия`,
+  en: `Pizza|Food;Sushi|Food;Chocolate|Dessert;Ice cream|Dessert;Coffee|Drink;Lemonade|Drink;Penguin|Animal;Tiger|Animal;Dolphin|Animal;Bee|Insect;Airplane|Transport;Train|Transport;Bicycle|Transport;Beach|Leisure;Cinema|Entertainment;Library|Public place;Hospital|Public place;School|Education;Guitar|Music;Piano|Music;Football|Sport;Chess|Game;Rainbow|Nature;Volcano|Nature;Snowman|Winter;Umbrella|Weather;Telescope|Science;Robot|Technology;Key|Household;Suitcase|Travel`,
+  kk: `Пицца|Тағам;Суши|Тағам;Шоколад|Тәтті;Балмұздақ|Тәтті;Кофе|Сусын;Лимонад|Сусын;Пингвин|Жануар;Жолбарыс|Жануар;Дельфин|Жануар;Балара|Жәндік;Ұшақ|Көлік;Пойыз|Көлік;Велосипед|Көлік;Жағажай|Демалыс;Кинотеатр|Ойын-сауық;Кітапхана|Қоғамдық орын;Аурухана|Қоғамдық орын;Мектеп|Білім;Гитара|Музыка;Пианино|Музыка;Футбол|Спорт;Шахмат|Ойын;Кемпірқосақ|Табиғат;Жанартау|Табиғат;Аққала|Қыс;Қолшатыр|Ауа райы;Телескоп|Ғылым;Робот|Технология;Кілт|Тұрмыс;Чемодан|Саяхат`
+};
