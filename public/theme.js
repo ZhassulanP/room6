@@ -14,7 +14,8 @@
   function applyTheme() {
     const theme = preference || (systemTheme.matches ? 'dark' : 'light');
     document.documentElement.dataset.theme = theme;
-    document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#20211f' : '#f2f0e9';
+    const palettes = { wordmine: {light:'#f5f7f3',dark:'#141714'}, spy: {light:'#f8f6f6',dark:'#151414'} };
+    document.querySelector('meta[name="theme-color"]').content = palettes[document.documentElement.dataset.game]?.[theme] || (theme === 'dark' ? '#20211f' : '#f2f0e9');
     const toggle = document.getElementById('theme-toggle');
     if (toggle) {
       toggle.setAttribute('aria-pressed', String(theme === 'dark'));
@@ -23,6 +24,7 @@
   }
 
   window.addEventListener('wordmine:theme-labels', applyTheme);
+  window.addEventListener('wordmine:palette', applyTheme);
   applyTheme();
   systemTheme.addEventListener('change', () => { if (!preference) applyTheme(); });
   window.addEventListener('storage', event => {

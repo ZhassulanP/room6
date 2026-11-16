@@ -13,6 +13,7 @@ const drafts = new Map(), entryDrafts = new Map();
 const revealedRoles = new Set();
 let sceneKey = '';
 let scoreMotion = new Map();
+let gameTransition = null;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 function readStoredValue(storage, key, legacyKey) {
   const current = storage.getItem(key);
@@ -62,8 +63,8 @@ $('#rules').addEventListener('click', e => { if (e.target === e.currentTarget) {
 
 const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7"/></svg>';
 function gameArt(game) {
-  if(game==='spy') return `<div class="poster-art dossier-art" aria-hidden="true"><div class="dossier dossier-innocent"><span>01</span><b>●</b><i>KNOWN</i></div><div class="dossier dossier-spy"><span>02</span><b>?</b><i>SPY</i></div><div class="dossier dossier-white"><span>03</span><b>—</b><i>WHITE</i></div><div class="dossier-stamp">TOP SECRET</div></div>`;
-  return `<div class="poster-art letter-art" aria-hidden="true"><div class="tile-row">${'WORD'.split('').map((letter,i)=>`<span class="letter-tile" style="--tile:${i}">${letter}<small>${i+1}</small></span>`).join('')}</div><div class="tile-row">${'MINE'.split('').map((letter,i)=>`<span class="letter-tile" style="--tile:${i+4}">${letter}<small>${i+5}</small></span>`).join('')}</div><span class="tile-burst">✳</span></div>`;
+  if(game==='spy') return `<div class="poster-art dossier-art" aria-hidden="true"><div class="dossier dossier-innocent"><b>●</b></div><div class="dossier dossier-spy"><b>?</b></div><div class="dossier dossier-white"><b>—</b></div></div>`;
+  return `<div class="poster-art letter-art" aria-hidden="true"><div class="tile-row">${'WORD'.split('').map((letter,i)=>`<span class="letter-tile" style="--tile:${i}">${letter}</span>`).join('')}</div><div class="tile-row">${'MINE'.split('').map((letter,i)=>`<span class="letter-tile" style="--tile:${i+4}">${letter}</span>`).join('')}</div><span class="tile-burst">✳</span></div>`;
 }
 function openEntry(nextTab, game = selectedGame) {
   captureEntry();
@@ -83,11 +84,11 @@ function bindHomeMotion() {
   });
 }
 function home() {
-  app.innerHTML = `<section class="home-intro"><div><p class="eyebrow">${tr('clubLabel')}</p><h1>${tr('homeLineOne')}<br><span class="headline-accent">${tr('homeLineTwo')}</span></h1></div><div class="home-aside"><span class="table-mark" aria-hidden="true"><i>W</i><i>?</i></span><p>${tr('homeIntro')}</p></div></section>
-    <section class="game-shelf" aria-labelledby="choose-heading"><div class="shelf-heading"><h2 id="choose-heading">${tr('chooseMove')}</h2><span class="mono">01 — 03</span></div><div class="home-options">
-    <article class="home-option join-option" style="--deal:0"><div class="option-meta"><span>01 / ${tr('joinCategory')}</span><span aria-hidden="true">↳</span></div><h2>${tr('joinHeading')}</h2><p class="option-description">${tr('joinDescription')}</p><form id="home-join-form" class="home-join-form"><label for="home-code">${tr('joinCodeLabel')}</label><input id="home-code" name="code" aria-label="${tr('code')}" placeholder="000000" minlength="4" maxlength="6" pattern="([0-9]{6}|[0-9]{4}|[A-Za-z2-9]{6})" inputmode="numeric" autocomplete="off" spellcheck="false" required><button class="shelf-button" type="submit">${tr('join')}${arrow}</button></form></article>
-    ${['spy','wordmine'].map((game,index)=>`<article class="home-option ${game}-option" style="--deal:${index+1}"><div class="option-meta"><span>0${index+2} / ${tr(game==='spy'?'spyCategory':'wordmineCategory')}</span><span>${tr('playersThree')}</span></div><h2>${tr(game)}</h2>${gameArt(game)}<p class="option-description">${tr(game==='spy'?'spyShort':'wordmineShort')}</p><button class="shelf-button" type="button" data-create-game="${game}">${tr(game==='spy'?'createSpy':'createWordmine')}${arrow}</button></article>`).join('')}
-    </div></section><footer class="home-footer"><p>${tr('noDownloads')}</p><p>${tr('justFriends')} <span aria-hidden="true">↗</span></p></footer>`;
+  app.innerHTML = `<section class="home-intro"><h1>${tr('chooseGame')}</h1></section>
+    <section class="game-shelf" aria-label="${tr('chooseGame')}"><div class="home-options">
+    <article class="home-option join-option" style="--deal:0"><h2>${tr('joinHeading')}</h2><form id="home-join-form" class="home-join-form"><label for="home-code">${tr('code')}</label><input id="home-code" name="code" aria-label="${tr('code')}" placeholder="000000" minlength="4" maxlength="6" pattern="([0-9]{6}|[0-9]{4}|[A-Za-z2-9]{6})" inputmode="numeric" autocomplete="off" spellcheck="false" required><button class="shelf-button" type="submit">${tr('join')}${arrow}</button></form></article>
+    ${['spy','wordmine'].map((game,index)=>`<article class="home-option ${game}-option" style="--deal:${index+1}"><div class="option-meta"><span>${tr('playersThree')}</span></div><h2>${tr(game)}</h2>${gameArt(game)}<p class="option-description">${tr(game==='spy'?'spyShort':'wordmineShort')}</p><button class="shelf-button" type="button" data-create-game="${game}">${tr(game==='spy'?'createSpy':'createWordmine')}${arrow}</button></article>`).join('')}
+    </div></section>`;
   $('#home-code').value = entryDrafts.get('code') || entryDrafts.get('home-code') || '';
   $('#home-join-form').onsubmit = e => { e.preventDefault(); entryDrafts.set('code', $('#home-code').value.trim().toUpperCase()); openEntry('join'); };
   bindHomeMotion();
@@ -97,12 +98,12 @@ function home() {
 }
 function entry() {
   document.body.dataset.screen = 'entry';
-  delete document.body.dataset.game;
+  setGameTheme(tab==='create'?selectedGame:null);
   if (tab === 'home') { home(); return; }
   const invite = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
   const legacyInvite = /[A-Z]/.test(invite || entryDrafts.get('code') || '');
   const joining = tab === 'join';
-  app.innerHTML = `<section class="entry-stage"><button class="back-link" id="back-games">← ${tr('backGames')}</button><div class="entry-layout"><div class="entry-intro"><p class="eyebrow">${tr(joining?'joinCategory':selectedGame==='spy'?'spyCategory':'wordmineCategory')}</p><h1>${tr(joining?'joinHeading':selectedGame==='spy'?'spy':'wordmine')}</h1><p>${tr(joining?'joinIntro':'createIntro')}</p>${joining?'':`<div class="entry-art ${selectedGame}-option">${gameArt(selectedGame)}</div><button class="text-button" id="entry-rules">${tr('roomRules')} ↗</button>`}</div>
+  app.innerHTML = `<section class="entry-stage"><button class="back-link" id="back-games">← ${tr('backGames')}</button><div class="entry-layout"><div class="entry-intro"><h1>${tr(joining?'joinHeading':selectedGame==='spy'?'spy':'wordmine')}</h1>${joining?'':`<div class="entry-art ${selectedGame}-option">${gameArt(selectedGame)}</div><button class="text-button" id="entry-rules">${tr('roomRules')} ↗</button>`}</div>
     <form id="entry-form" class="entry-form"><div class="form-heading"><span class="mono">${tr(joining?'join':'create')}</span><span aria-hidden="true">↘</span></div><div class="field"><label for="name">${tr('name')}</label><input name="name" id="name" placeholder="${tr('namePlaceholder')}" maxlength="24" autocomplete="nickname" required></div>
     ${joining?`<div class="field"><label for="code">${tr('code')}</label><input id="code" name="code" placeholder="000000" value="${esc(invite)}" minlength="4" maxlength="6" pattern="([0-9]{6}|[0-9]{4}|[A-Za-z2-9]{6})" inputmode="${legacyInvite?'text':'numeric'}" autocomplete="off" spellcheck="false" required></div>`:`<div class="field"><label for="capacity">${tr('capacity')} <span class="muted">(${tr('unlimited')})</span></label><input id="capacity" name="capacity" type="number" min="3" max="1000000" step="1" placeholder="${tr('playersThree')}"><span class="field-help">${tr('capacityHelp')}</span></div>`}
     ${!joining && selectedGame==='spy'?roleFields('entry',{spyCount:1,mrWhite:false}):''}<p class="error" id="entry-error" role="alert"></p><button class="primary full" type="submit" ${busy?'disabled':''}>${tr(joining?'enter':selectedGame==='spy'?'createSpy':'createWordmine')}${arrow}</button>${joining?`<p class="form-note">${tr('recovery')}</p>`:`<p class="form-note">${tr('noDownloads')}</p>`}</form></div></section>`;
@@ -135,11 +136,14 @@ async function request(path,data) {
 }
 function accept(next) {
   if(room && next.serverNow<room.serverNow) return;
+  const gameChanged = Boolean(room && (room.settings.game || 'wordmine') !== (next.settings.game || 'wordmine'));
+  if(gameChanged) drafts.clear();
   if(room && (room.phase!==next.phase || room.turn!==next.turn || room.round?.id!==next.round?.id)) drafts.clear();
   scoreMotion = new Map(next.players.filter(p=>room?.players.some(old=>old.id===p.id && old.score<p.score)).map(p=>[p.id,room.players.find(old=>old.id===p.id).score]));
   room=next; offset=next.serverNow-Date.now(); connected=true;
   const nextSignature=JSON.stringify({...next,serverNow:0});
-  if(signature!==nextSignature) { signature=nextSignature; renderRoom(); }
+  if(signature!==nextSignature) { signature=nextSignature; renderAcceptedRoom(gameChanged); }
+  if(gameChanged) toast(t('gameChanged',{name:playerName(next.hostId),game:t(next.settings.game)}));
   $('#connection')?.setAttribute('hidden',''); updateTimer();
 }
 const isHost=()=>room.me===room.hostId;
@@ -152,15 +156,21 @@ function roster() {
   }).join('');
 }
 function renderRoom() {
-  const nextScene = [room.round?.id, room.phase, room.round?.ballot].join(':');
+  if(gameTransition) return;
+  const previousSwitch=$('#game-switch');
+  const previousThumb=previousSwitch?.querySelector('.game-switch-thumb');
+  const previousThumbTransform=previousThumb && window.getComputedStyle?.(previousThumb).transform;
+  const nextScene = [room.settings.game, room.round?.id, room.phase, room.round?.ballot].join(':');
   const enteringScene = nextScene !== sceneKey; sceneKey = nextScene;
   document.body.dataset.screen = 'room';
-  document.body.dataset.game = room.settings.game || 'wordmine';
+  setGameTheme(room.settings.game || 'wordmine');
   const oldDetails=$('#advanced')?.open;
   const focused=document.activeElement?.id;
   const selection=document.activeElement && ['text','search'].includes(document.activeElement.type)?document.activeElement.selectionStart:null;
-  app.innerHTML=`<div class="room-top"><h1><span class="mini-label">${tr(room.settings.game || 'wordmine')}</span> ${room.phase==='lobby'?tr('lobby'):room.phase==='finished'?tr('gameOver'):room.phase==='paused'?tr('waitingPlayers'):tr('turn',{current:Math.min(room.turn+1,room.totalTurns),total:room.totalTurns})}</h1><div class="room-actions"><button class="secondary" id="invite-button">${tr('invite')} ↗</button><span class="room-code" aria-label="${tr('code')}">${esc(room.code)}</span></div></div>
-  <div class="connection" id="connection" ${connected?'hidden':''}>${tr('reconnecting')}</div><div class="room-layout"><aside class="panel sidebar"><div class="roster-title"><h2>${tr('players')}</h2><span class="count-pill">${room.players.length} / ${room.settings.capacity??'∞'}</span></div><div class="roster">${roster()}</div><button class="text-button" id="leave-button">${tr('leave')} ↗</button></aside><div class="room-main ${enteringScene?'scene-enter':''}">${room.phase==='lobby'?lobby():room.phase==='finished'?finished():room.phase==='paused'?paused():game()}</div></div>`;
+  app.innerHTML=`<div class="room-top"><h1>${room.phase==='lobby'?tr('lobby'):room.phase==='finished'?tr('gameOver'):room.phase==='paused'?tr('waitingPlayers'):tr('turn',{current:Math.min(room.turn+1,room.totalTurns),total:room.totalTurns})}</h1><div class="room-actions"><button class="secondary" id="invite-button">${tr('invite')} ↗</button><span class="room-code" aria-label="${tr('code')}">${esc(room.code)}</span></div></div>
+  ${room.phase==='lobby'?gameSwitcher():''}<div class="connection" id="connection" ${connected?'hidden':''}>${tr('reconnecting')}</div><div class="room-layout"><aside class="panel sidebar"><div class="roster-title"><h2>${tr('players')}</h2><span class="count-pill">${room.players.length} / ${room.settings.capacity??'∞'}</span></div><div class="roster">${roster()}</div><button class="text-button" id="leave-button">${tr('leave')} ↗</button></aside><div class="room-main ${enteringScene?'scene-enter':''}">${room.phase==='lobby'?lobby():room.phase==='finished'?finished():room.phase==='paused'?paused():game()}</div></div>`;
+  if(previousSwitch && $('#game-switch')) $('#game-switch').replaceWith(previousSwitch);
+  bindGameSwitch(previousThumbTransform);
   $('#invite-button').onclick=copyInvite;
   $('#leave-button').onclick=()=>confirmAction(t('leaveTitle'),t(room.phase==='lobby'?'leaveLobby':'leaveGame'),t('leave'),()=>mutate('leave'));
   document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>confirmAction(t('removeTitle'),t('removeMessage',{name:playerName(b.dataset.kick)}),t('remove'),()=>mutate('kick',{playerId:b.dataset.kick})));
@@ -173,21 +183,21 @@ function renderRoom() {
   $('#mine-form')?.addEventListener('submit',e=>{e.preventDefault();mutate('mine',{word:$('#mine-word').value}).then(success=>{if(success)drafts.delete('mine-word');});});
   $('#guess-form')?.addEventListener('submit',e=>{e.preventDefault();mutate('guess',{word:$('#guess-word').value}).then(success=>{if(success){drafts.delete('guess-word');if($('#guess-word'))$('#guess-word').value='';}});});
   bindSpy();
-  $('#set-game')?.addEventListener('change', e => { const form = $('#settings-form'); const d = Object.fromEntries(new FormData(form)); d.game = e.target.value; d.useDefaultWords = $('#default-words').checked; d.mrWhite = $('#set-white')?.checked || false; if (d.game === 'spy' && !d.customWords.trim()) d.useDefaultWords = true; mutate('settings', d).then(success => { if(success) { drafts.clear(); renderRoom(); } }); });
   $('#settings-form')?.addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));d.useDefaultWords=$('#default-words').checked;d.mrWhite=$('#set-white')?.checked||false;mutate('settings',d).then(success=>{if(success){drafts.clear();renderRoom();toast(t('saved'));}});});
   for(const [id,value] of drafts) { const input=document.getElementById(id);if(input){if(input.type==='checkbox')input.checked=value;else input.value=value;} }
   document.querySelectorAll('.room-main input,.room-main textarea,.room-main select').forEach(input=>input.addEventListener('input',()=>drafts.set(input.id,input.type==='checkbox'?input.checked:input.value)));
+  bindWordLanguages();
   const refreshWordCount=()=>{ const counts=room.settings.wordCounts||{ru:500}; $('#default-words-label').textContent=t('defaultWords',{count:counts[$('#set-word-language').value]||0}); };
   if($('#set-word-language')) { refreshWordCount(); $('#set-word-language').addEventListener('change',refreshWordCount); }
   if(oldDetails&&$('#advanced'))$('#advanced').open=true;
   if(focused&&document.getElementById(focused)){const el=document.getElementById(focused);el.focus({preventScroll:true});if(selection!=null&&el.setSelectionRange)el.setSelectionRange(selection,selection);}
-  if(busy) document.querySelectorAll('.room-main button,.kick,#leave-button').forEach(b=>b.disabled=true);
+  if(busy) document.querySelectorAll('.room-main button,.kick,#leave-button,[data-switch-game]').forEach(b=>b.disabled=true);
   updateTimer(); animateScores();
 }
 function lobby() {
   const s=room.settings;
-  const config=isHost()?`<form id="settings-form" class="panel"><h2>${tr('settings')}</h2><div class="settings-grid"><div class="field"><label for="set-game">${tr('gameMode')}</label><select id="set-game" name="game">${['wordmine','spy'].map(mode=>`<option value="${mode}" ${s.game===mode?'selected':''}>${tr(mode)}</option>`).join('')}</select></div><div class="field"><label for="set-capacity">${tr('capacity')}</label><input id="set-capacity" name="capacity" type="number" min="${Math.max(3,room.players.length)}" max="1000000" placeholder="${tr('unlimited')}" value="${s.capacity??''}"></div><div class="field"><label for="set-cycles">${tr(s.game==='spy'?'spyRounds':'cycles')}</label><input id="set-cycles" name="cycles" type="number" min="1" max="20" required value="${s.cycles}"></div><div class="field"><label for="set-word-language">${tr('wordLanguage')}</label><select id="set-word-language" name="wordLanguage">${Object.entries(languages).map(([code,name])=>`<option value="${code}" ${code===(s.wordLanguage||'ru')?'selected':''}>${esc(name)}</option>`).join('')}</select></div></div>${s.game==='spy'?roleFields('set',s,s.capacity?Math.max(1,s.capacity-1):1000000):''}<details class="advanced" id="advanced"><summary>${tr(s.game==='spy'?'spyDictionary':'miningSettings')}</summary>${s.game==='spy'?'':`<div class="field"><label>${tr('miningTime')}</label><div class="fixed-setting">${tr('sixtySeconds')}</div></div>`}<label class="check-label"><input id="default-words" name="useDefaultWords" type="checkbox" ${s.useDefaultWords?'checked':''}><span id="default-words-label">${tr('defaultWords',{count:s.wordCounts?.[s.wordLanguage||'ru']||500})}</span></label><label for="set-custom">${tr('customWords')}</label><textarea id="set-custom" name="customWords" placeholder="${tr('customPlaceholder')}" maxlength="61000">${esc(s.customWords)}</textarea><span class="field-help">${tr(s.game==='spy'?'spyCustomHelp':'customHelp')}</span></details><div class="settings-save"><span class="settings-note">${tr('duration')}: ${tr('untimed')}</span><button class="secondary" type="submit">${tr('save')}</button></div></form>`:`<div class="panel"><h2>${tr('waitingStart')}</h2><p class="subtext">${tr('waitingHost',{name:playerName(room.hostId)})}</p><div class="stats-strip"><div class="stat"><strong>${s.cycles}</strong><span>${tr(s.game==='spy'?'spyRounds':'cycles')}</span></div><div class="stat"><strong>${esc(languages[s.wordLanguage||'ru'])}</strong><span>${tr('wordLanguage')}</span></div></div></div>`;
-  return `${s.game==='spy'?`<div class="role-summary">${tr('roleCountSummary',{count:s.spyCount??1,white:t(s.mrWhite?'enabled':'disabled')})}</div><details class="panel lobby-rules"><summary>${tr('roomRules')}</summary><p class="subtext">${tr('spyRules')}</p></details>`:''}${config}<div class="panel lobby-bottom"><div><h3>${tr('playerCount',{count:room.players.length})}</h3><p>${room.players.length<minimumPlayers()?tr('roleRequirements',{count:minimumPlayers()}):tr('canStart')}</p></div><div class="buttons"><button class="${me().ready?'secondary':'primary'}" data-action="ready">${me().ready?'✓ ':''}${tr('ready')}</button>${isHost()?`<button class="primary" data-action="start" ${room.players.length<minimumPlayers()?'disabled':''}>${tr('start')} →</button>`:''}</div></div>`;
+  const config=isHost()?`<form id="settings-form" class="panel"><h2>${tr('settings')}</h2><input type="hidden" id="set-game" name="game" value="${esc(s.game||'wordmine')}"><div class="settings-grid"><div class="field"><label for="set-capacity">${tr('capacity')}</label><input id="set-capacity" name="capacity" type="number" min="${Math.max(3,room.players.length)}" max="1000000" placeholder="${tr('unlimited')}" value="${s.capacity??''}"></div><div class="field"><label for="set-cycles">${tr(s.game==='spy'?'spyRounds':'cycles')}</label><input id="set-cycles" name="cycles" type="number" min="1" max="20" required value="${s.cycles}"></div><div class="field dictionary-language-field"><span class="field-label" id="word-language-label">${tr('wordLanguage')}</span><input type="hidden" id="set-word-language" name="wordLanguage" value="${esc(s.wordLanguage||'ru')}"><div class="word-language-buttons" role="group" aria-labelledby="word-language-label">${Object.entries(languages).map(([code,name])=>`<button type="button" class="word-language-button" data-word-language="${code}" aria-pressed="${code===(s.wordLanguage||'ru')}" lang="${code}"><span>${esc(name)}</span><span class="language-check" aria-hidden="true">✓</span></button>`).join('')}</div></div></div>${s.game==='spy'?roleFields('set',s,s.capacity?Math.max(1,s.capacity-1):1000000):''}<details class="advanced" id="advanced"><summary>${tr(s.game==='spy'?'spyDictionary':'miningSettings')}</summary>${s.game==='spy'?'':`<div class="field"><label>${tr('miningTime')}</label><div class="fixed-setting">${tr('sixtySeconds')}</div></div>`}<label class="check-label"><input id="default-words" name="useDefaultWords" type="checkbox" ${s.useDefaultWords?'checked':''}><span id="default-words-label">${tr('defaultWords',{count:s.wordCounts?.[s.wordLanguage||'ru']||500})}</span></label><label for="set-custom">${tr('customWords')}</label><textarea id="set-custom" name="customWords" placeholder="${tr('customPlaceholder')}" maxlength="61000">${esc(s.customWords)}</textarea><span class="field-help">${tr(s.game==='spy'?'spyCustomHelp':'customHelp')}</span></details><div class="settings-save"><button class="secondary" type="submit">${tr('save')}</button></div></form>`:`<div class="panel"><h2>${tr('waitingStart')}</h2><p class="subtext">${tr('waitingHost',{name:playerName(room.hostId)})}</p><div class="stats-strip"><div class="stat"><strong>${s.cycles}</strong><span>${tr(s.game==='spy'?'spyRounds':'cycles')}</span></div><div class="stat"><strong>${esc(languages[s.wordLanguage||'ru'])}</strong><span>${tr('wordLanguage')}</span></div></div></div>`;
+  return `<section class="lobby-color-banner"><div><h2>${tr(s.game||'wordmine')}</h2></div><div class="lobby-banner-art ${s.game==='spy'?'spy-option':'wordmine-option'}">${gameArt(s.game||'wordmine')}</div></section>${s.game==='spy'?`<div class="role-summary">${tr('roleCountSummary',{count:s.spyCount??1,white:t(s.mrWhite?'enabled':'disabled')})}</div><details class="panel lobby-rules"><summary>${tr('roomRules')}</summary><p class="subtext">${tr('spyRules')}</p></details>`:''}${config}<div class="panel lobby-bottom"><div><h3>${tr('playerCount',{count:room.players.length})}</h3><p>${room.players.length<minimumPlayers()?tr('roleRequirements',{count:minimumPlayers()}):tr('canStart')}</p></div><div class="buttons"><button class="${me().ready?'secondary':'primary'}" data-action="ready">${me().ready?'✓ ':''}${tr('ready')}</button>${isHost()?`<button class="primary" data-action="start" ${room.players.length<minimumPlayers()?'disabled':''}>${tr('start')} →</button>`:''}</div></div>`;
 }
 function paused() {
   return `<section class="panel"><h2>${tr('pause')}</h2><p class="subtext">${tr('pauseHelp',{count:Math.max(0,minimumPlayers()-room.players.length)})}</p></section>${isHost()?`<div class="admin-controls"><button class="text-button" id="lobby-button">${tr('toLobby')} ↗</button></div>`:''}`;
@@ -246,14 +256,14 @@ function updateTimer() {
 async function mutate(action,data={}) {
   if(busy)return false;busy=true;
   if(room?.round&&(action.startsWith('spy-') || ['mine','redraw','guess','guessed','claim','resolve','skip','next'].includes(action)))data={...data,roundId:room.round.id};
-  document.querySelectorAll('.room-main button,.kick,#leave-button').forEach(b=>b.disabled=true);
+  document.querySelectorAll('.room-main button,.kick,#leave-button,[data-switch-game]').forEach(b=>b.disabled=true);
   try {
     const result=await request(`/api/rooms/${session.code}/action`,{action,data});
     if(result.left){clearSession();room=null;signature='';drafts.clear();entryDrafts.clear();tab='home';history.replaceState(null,'','/');entry();}
     else accept(result.room);
     return true;
   } catch(e){toast(e.message);if(e.status===401||e.status===404)lostRoom(e.message);return false;}
-  finally{busy=false;if(room){signature='';renderRoom();}else if($('#entry-form [type=submit]'))$('#entry-form [type=submit]').disabled=false;}
+  finally{busy=false;if(room){signature='';if(!gameTransition)renderRoom();}else if($('#entry-form [type=submit]'))$('#entry-form [type=submit]').disabled=false;}
 }
 function confirmAction(title,message,label,callback) {
   const dialog=document.createElement('dialog');dialog.className='dialog';
@@ -305,7 +315,7 @@ function spyGame() {
   if (room.phase === 'result') {
     content = `<div class="result-heading spy-result"><span class="result-emblem" aria-hidden="true">${r.result.outcome==='caught'?'✓':r.result.outcome==='undetected'?'?':'—'}</span><h2>${tr(r.result.outcome==='caught'?'spyInnocentWin':r.result.outcome==='undetected'?'hiddenWin':'resultSkipped')}</h2>${(r.spyIds || [r.spyId]).filter(Boolean).map(id=>`<p>${tr('spyIdentity',{name:playerName(id)})}</p>`).join('')}${r.whiteId?`<p>${tr('whiteIdentity',{name:playerName(r.whiteId)})}</p>`:''}<span class="mini-label">${tr('secret')}</span><div class="secret-word">${esc(r.word)}</div>${Object.entries(r.result.awards).map(([id,points])=>`<p>${tr('spyAward',{name:playerName(id),points})}</p>`).join('') || `<p>${tr('noPoints')}</p>`}</div>${scoreboard()}${isHost() && room.turn+1<room.totalTurns?`<form id="role-settings-form" class="next-role-settings"><h3>${tr('nextRoles')}</h3>${roleFields('next',room.settings,room.players.length-1)}<button class="secondary" type="submit">${tr('save')}</button></form>`:''}<div class="game-controls">${isHost()?`<button class="primary" data-action="next">${tr(room.turn+1>=room.totalTurns?'gameResults':'next')} →</button>`:`<p>${tr('waitNext')}</p>`}</div>`;
   } else {
-    content = `<div class="game-head"><span class="role-pill"><span class="live-dot" aria-hidden="true"></span>${tr('revealPrivate')}</span>${r.eliminated.includes(room.me)?`<span>${tr('spyEliminated')}</span>`:''}</div>`;
+    content = r.eliminated.includes(room.me)?`<p class="note">${tr('spyEliminated')}</p>`:'';
     if(r.role==='spectator') content += `<p class="note">${tr('spySpectating')}</p>`;
     else content += privateRoleCard(r);
     if (room.phase === 'spy-clues') {
@@ -341,11 +351,11 @@ function minimumPlayers() {
   return room.settings.game==='spy' ? Math.max(3,(room.settings.spyCount??1)+Number(Boolean(room.settings.mrWhite))+1) : 3;
 }
 function roleFields(prefix, values, max = 1000000) {
-  return `<fieldset class="role-config"><legend>${tr('roleSetup')}</legend><div class="role-config-grid"><div class="field"><label for="${prefix}-spies">${tr('spyCount')}</label><input id="${prefix}-spies" name="spyCount" type="number" min="0" max="${max}" value="${values.spyCount??1}" step="1" required></div><label class="white-toggle" for="${prefix}-white"><input id="${prefix}-white" name="mrWhite" type="checkbox" ${values.mrWhite?'checked':''}><span class="toggle-track" aria-hidden="true"></span><span><strong>${tr('mrWhite')}</strong><small>${tr('mrWhiteHelp')}</small></span></label></div><p class="field-help">${tr('roleSetupHelp')}</p></fieldset>`;
+  return `<fieldset class="role-config"><legend>${tr('roleSetup')}</legend><div class="role-config-grid"><div class="field"><label for="${prefix}-spies">${tr('spyCount')}</label><input id="${prefix}-spies" name="spyCount" type="number" min="0" max="${max}" value="${values.spyCount??1}" step="1" required></div><label class="white-toggle" for="${prefix}-white"><input id="${prefix}-white" name="mrWhite" type="checkbox" ${values.mrWhite?'checked':''}><span class="toggle-track" aria-hidden="true"></span><span><strong>${tr('mrWhite')}</strong><small>${tr('mrWhiteHelp')}</small></span></label></div></fieldset>`;
 }
 function privateRoleCard(r) {
   const revealed=revealedRoles.has(r.id);
-  return `<div class="private-role ${revealed?'is-revealed':''}" id="private-role-card" data-role="${esc(r.role)}"><button id="reveal-role" class="role-flipper" type="button" aria-expanded="${revealed}" aria-label="${esc(roleAccessibleLabel(r,revealed))}"><span class="role-face role-back" aria-hidden="${revealed}"><span class="mini-label">${tr('revealPrivate')}</span><span class="role-seal" aria-hidden="true">?</span><span class="reveal-prompt">${tr('revealRole')} ↗</span></span><span class="role-face role-front" aria-hidden="${!revealed}"><span class="mini-label">${tr('role',{role:t(r.role)})}</span><span class="secret-word">${r.role==='mrWhite'?'—':esc(r.role==='spy'?r.hint:r.word)}</span><span class="role-secret-label">${tr(r.role==='mrWhite'?'whiteBlank':r.role==='spy'?'spyHint':'secret')}</span><span class="role-secret-help">${tr(r.role==='mrWhite'?'whitePlay':'spyKeep')}</span><span class="hide-prompt">${tr('hideRole')} ↶</span></span></button></div>`;
+  return `<div class="private-role ${revealed?'is-revealed':''}" id="private-role-card" data-role="${esc(r.role)}"><button id="reveal-role" class="role-flipper" type="button" aria-expanded="${revealed}" aria-label="${esc(roleAccessibleLabel(r,revealed))}"><span class="role-face role-back" aria-hidden="${revealed}"><span class="role-seal" aria-hidden="true">?</span><span class="reveal-prompt">${tr('revealRole')} ↗</span></span><span class="role-face role-front" aria-hidden="${!revealed}"><span class="mini-label">${tr('role',{role:t(r.role)})}</span><span class="secret-word">${r.role==='mrWhite'?'—':esc(r.role==='spy'?r.hint:r.word)}</span><span class="role-secret-label">${tr(r.role==='mrWhite'?'whiteBlank':r.role==='spy'?'spyHint':'secret')}</span><span class="role-secret-help">${tr(r.role==='mrWhite'?'whitePlay':'spyKeep')}</span><span class="hide-prompt">${tr('hideRole')} ↶</span></span></button></div>`;
 }
 
 function animateScores() {
@@ -369,4 +379,94 @@ function roleAccessibleLabel(r,revealed) {
   if(!revealed) return t('revealRole');
   const detail=r.role==='mrWhite'?t('whiteBlank'):`${t(r.role==='spy'?'spyHint':'secret')}: ${r.role==='spy'?r.hint:r.word}`;
   return `${t('role',{role:t(r.role)})}. ${detail}. ${t('hideRole')}`;
+}
+
+function setGameTheme(game) {
+  if(game) { document.documentElement.dataset.game=game; document.body.dataset.game=game; }
+  else { delete document.documentElement.dataset.game; delete document.body.dataset.game; }
+  window.dispatchEvent(new Event('wordmine:palette'));
+}
+function renderAcceptedRoom(gameChanged) {
+  if(gameTransition) return;
+  const main=$('.room-main');
+  if(!gameChanged || reducedMotion() || !main?.animate) { renderRoom(); return; }
+  app.classList.add('is-switching-game');
+  app.setAttribute('aria-busy','true');
+  gameTransition=main.animate([{opacity:1,transform:'translateX(0)'},{opacity:0,transform:'translateX(-14px)'}],{duration:150,easing:'ease-in',fill:'forwards'});
+  gameTransition.finished.catch(()=>{}).then(()=>{
+    gameTransition=null;
+    app.classList.remove('is-switching-game');
+    app.removeAttribute('aria-busy');
+    renderRoom();
+  });
+}
+function gameSwitcher() {
+  return `<section class="lobby-switch-bar" aria-label="${tr('gameMode')}"><div><span class="field-label">${tr('gameMode')}</span></div><div class="game-switch" id="game-switch" role="radiogroup" aria-label="${tr('gameMode')}" style="--switch-position:${room.settings.game==='spy'?1:0}"><span class="game-switch-thumb" aria-hidden="true"></span>${['wordmine','spy'].map(mode=>`<button id="switch-${mode}" type="button" role="radio" data-switch-game="${mode}" aria-checked="${(room.settings.game||'wordmine')===mode}" tabindex="${(room.settings.game||'wordmine')===mode?0:-1}" ${!isHost()?'disabled':''}><span class="game-swatch swatch-${mode}" aria-hidden="true"></span><span data-switch-label>${tr(mode)}</span></button>`).join('')}</div></section>`;
+}
+function bindGameSwitch(previousTransform) {
+  const control=$('#game-switch'); if(!control) return;
+  control.setAttribute('aria-label',t('gameMode'));
+  if(!isHost())control.title=t('gameSwitchHelp');
+  let drag=null, ignoreClickUntil=0;
+  const previousGame=control.querySelector('[aria-checked="true"]')?.dataset.switchGame;
+  const position=()=>room.settings.game==='spy'?1:0;
+  control.style.setProperty('--switch-position',String(position()));
+  const thumb=control.querySelector('.game-switch-thumb');
+  if(previousGame && previousGame!==(room.settings.game||'wordmine') && !reducedMotion() && thumb.animate) {
+    thumb.animate([{transform:previousTransform || `translateX(${previousGame==='spy'?100:0}%)`},{transform:`translateX(${position()*100}%)`}],{duration:450,easing:'cubic-bezier(.2,.8,.2,1)'});
+  }
+  const choose=mode=>{
+    if(!isHost() || busy || mode===(room.settings.game||'wordmine')) return false;
+    control.style.setProperty('--switch-position',String(mode==='spy'?1:0));
+    mutate('switch-game',{game:mode});
+    return true;
+  };
+  control.querySelectorAll('[data-switch-game]').forEach(button=>{
+    const selected=button.dataset.switchGame===(room.settings.game||'wordmine');
+    button.disabled=!isHost() || busy;
+    button.setAttribute('aria-checked',String(selected)); button.tabIndex=selected?0:-1;
+    button.querySelector('[data-switch-label]').textContent=t(button.dataset.switchGame);
+    button.onclick=()=>{if(performance.now()>ignoreClickUntil)choose(button.dataset.switchGame);};
+  });
+  control.onkeydown=e=>{
+    if(!isHost() || busy || !['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
+    e.preventDefault(); const mode=['ArrowRight','End'].includes(e.key)?'spy':'wordmine';
+    $(`#switch-${mode}`).focus(); choose(mode);
+  };
+  control.onpointerdown=e=>{
+    if(!isHost() || busy || (e.button!=null && e.button!==0)) return;
+    drag={id:e.pointerId,start:e.clientX,position:position(),width:control.getBoundingClientRect().width,moved:false};
+  };
+  control.onpointermove=e=>{
+    if(!drag || drag.id!==e.pointerId) return;
+    const dx=e.clientX-drag.start;
+    if(!drag.moved && Math.abs(dx)<7) return;
+    if(!drag.moved) {drag.moved=true;control.setPointerCapture?.(e.pointerId);control.classList.add('is-dragging');}
+    drag.position=Math.max(0,Math.min(1,position()+dx/(drag.width/2)));
+    control.style.setProperty('--switch-position',String(drag.position));
+  };
+  const finish=(e,cancelled=false)=>{
+    if(!drag || drag.id!==e.pointerId) return;
+    const ended=drag; drag=null; control.classList.remove('is-dragging');
+    let settled=position();
+    if(ended.moved) {
+      ignoreClickUntil=performance.now()+350;
+      const target=ended.position>=.5?'spy':'wordmine';
+      if(!cancelled && choose(target)) settled=target==='spy'?1:0;
+    }
+    control.style.setProperty('--switch-position',String(settled));
+    if(control.hasPointerCapture?.(e.pointerId))control.releasePointerCapture(e.pointerId);
+  };
+  control.onpointerup=e=>finish(e);
+  control.onpointercancel=e=>finish(e,true);
+  control.onlostpointercapture=e=>{if(drag)finish(e,true);};
+}
+function bindWordLanguages() {
+  const hidden=$('#set-word-language'); if(!hidden) return;
+  const sync=()=>document.querySelectorAll('[data-word-language]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.wordLanguage===hidden.value)));
+  document.querySelectorAll('[data-word-language]').forEach(button=>button.onclick=()=>{
+    hidden.value=button.dataset.wordLanguage; drafts.set(hidden.id,hidden.value); sync();
+    hidden.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  sync();
 }

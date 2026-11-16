@@ -582,6 +582,41 @@ for (const [key, values] of Object.entries(roleMessages)) {
 messages.ru.spyRules = 'Настройте роли, затем по очереди давайте по одной ассоциации и голосуйте. Для исключения нужно больше половины голосов активных игроков и подтверждение ведущего. Мирные видят слово, шпионы — подсказку, Мистер Уайт не видит ничего. Пойманный шпион один раз угадывает слово: ведущий может подтвердить бонус +1. Игра продолжается, пока остаются скрытые роли. Мирные получают по +1 после поимки всех. При победе скрытых ролей каждый оставшийся шпион получает +3, Уайт — +5. Все очки подтверждает ведущий. Роли можно менять до игры и между раундами.';
 messages.en.spyRules = 'Configure roles, take turns giving one clue word, then vote. An elimination needs more than half of active votes and leader confirmation. Innocents see the word; spies see a hint; Mr. White sees neither. Each caught spy gets one guess, worth +1 if the leader confirms it. Play continues while hidden roles remain. Innocents earn +1 each after all hidden players are caught. On a hidden-role win, each surviving spy earns +3 and surviving Mr. White earns +5. The leader confirms all points. Role settings can change before play and between rounds.';
 messages.kk.spyRules = 'Рөлдерді баптап, кезекпен бір ассоциация айтып, дауыс беріңдер. Шығару үшін белсенді ойыншылардың жартысынан көбі дауыс беріп, жүргізуші растауы керек. Бейбіттер сөзді, тыңшылар кеңесті көреді, Мистер Уайт ештеңе көрмейді. Ұсталған тыңшы бір рет жауап береді: жүргізуші растаса +1. Жасырын рөлдер қалса, ойын жалғасады. Барлығы ұсталса, әр бейбітке +1. Жасырын рөлдер жеңсе, ұсталмаған әр тыңшыға +3, Уайтқа +5. Барлық ұпайды жүргізуші растайды. Рөлдер ойын алдында және раундтар арасында өзгертіледі.';
+
+const switchMessages = {
+  "gameSwitchHelp": [
+    "Ведущий выбирает игру для всей комнаты",
+    "The leader chooses the game for everyone",
+    "Жүргізуші барлығына ойын таңдайды"
+  ],
+  "gameChanged": [
+    "{name} переключает комнату на {game}.",
+    "{name} switched the room to {game}.",
+    "{name} бөлмені {game} ойынына ауыстырды."
+  ],
+  "wordmineMood": [
+    "Тёплый приём. Опасные слова.",
+    "Warm company. Dangerous words.",
+    "Жылы орта. Қауіпті сөздер."
+  ],
+  "spyMood": [
+    "Холодная голова. Свои подозрения.",
+    "Keep your cool. Trust your instincts.",
+    "Сабыр сақта. Түйсігіңе сен."
+  ]
+};
+for (const [key, values] of Object.entries(switchMessages)) {
+  ['ru', 'en', 'kk'].forEach((lang, index) => { messages[lang][key] = values[index]; });
+}
+messages.ru.chooseGame='Во что играем?';
+messages.en.chooseGame='Choose a game.';
+messages.kk.chooseGame='Қай ойынды ойнаймыз?';
+messages.ru.spyShort='Найди тех, кто не знает слово.';
+messages.en.spyShort='Find who doesn’t know the word.';
+messages.kk.spyShort='Сөзді білмейтіндерді тап.';
+messages.ru.wordmineShort='Объясняй слова, не задевая мины.';
+messages.en.wordmineShort='Explain words. Avoid the mines.';
+messages.kk.wordmineShort='Сөзді түсіндір. Миналарға түспе.';
 let language = 'ru';
 try { const saved = typeof window === 'undefined' ? null : localStorage.getItem('word-mine-language'); if (Object.hasOwn(languages, saved)) language = saved; } catch {}
 export const getLanguage = () => language;

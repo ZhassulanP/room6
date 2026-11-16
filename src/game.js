@@ -192,8 +192,23 @@ export function act(room, token, action, data = {}, now = Date.now()) {
     requireThat(room.phase === 'lobby', 'Игра уже началась.'); p.ready = !p.ready;
   } else if (action === 'settings') {
     onlyHost(); requireThat(room.phase === 'lobby', 'Настройки доступны в лобби.');
-    room.settings = settings(data, room.players.length);
+    const next = settings(data, room.players.length);
+    room.gameSettings ||= {};
+    room.gameSettings[room.settings.game || 'wordmine'] = structuredClone(room.settings);
+    room.settings = next;
+    room.gameSettings[next.game] = structuredClone(next);
     room.players.forEach(player => { player.ready = false; });
+  } else if (action === 'switch-game') {
+    onlyHost(); requireThat(room.phase === 'lobby', 'Настройки доступны в лобби.');
+    requireThat(['wordmine', 'spy'].includes(data.game), 'Неизвестная игра.');
+    if (data.game !== (room.settings.game || 'wordmine')) {
+      const saved = room.gameSettings?.[data.game];
+      const next = settings(saved ? { ...saved, capacity: room.settings.capacity, customWords: saved.customWords.join('\n') } : { game: data.game, capacity: room.settings.capacity, wordLanguage: room.settings.wordLanguage }, room.players.length);
+      room.gameSettings ||= {};
+      room.gameSettings[room.settings.game || 'wordmine'] = structuredClone(room.settings);
+      room.settings = next;
+      room.players.forEach(player => { player.ready = false; });
+    }
   } else if (action === 'start') {
     onlyHost(); requireThat(room.phase === 'lobby', 'Игра уже началась.');
     requireThat(room.players.length >= 3, 'Для игры нужны хотя бы 3 игрока.');
