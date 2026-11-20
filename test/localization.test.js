@@ -26,16 +26,17 @@ test('room language determines the shared secret while preserving guesser privac
     const room = roomFor(language);
     act(room, 'host', 'start', {}, 1000);
     assert.ok(DICTIONARIES[language].includes(room.round.word));
-    const guest = view(room, 'guest', 1000);
-    assert.equal(guest.round.word, null);
-    assert.equal(guest.settings.wordLanguage, language);
-    assert.deepEqual(guest.settings.wordCounts, { ru: 500, en: 500, kk: 500 });
+    const guesser = room.players.find(p => p.id === room.round.guesserId);
+    const state = view(room, guesser.token, 1000);
+    assert.equal(state.round.word, null);
+    assert.equal(state.settings.wordLanguage, language);
+    assert.deepEqual(state.settings.wordCounts, { ru: 500, en: 500, kk: 500 });
     const secret = room.round.word;
     tick(room, room.round.deadline);
-    act(room, 'guest', 'guess', { word: secret.toUpperCase() }, 62000);
+    act(room, guesser.token, 'guess', { word: secret.toUpperCase() }, 62000);
     assert.equal(room.phase, 'result');
-    assert.equal(view(room, 'guest').round.word, secret);
-    assert.deepEqual(room.players.map(p => p.score), [1, 1, 0]);
+    assert.equal(view(room, guesser.token).round.word, secret);
+    for (const p of room.players) assert.equal(p.score, Number([room.round.explainerId, room.round.guesserId].includes(p.id)));
   }
 });
 

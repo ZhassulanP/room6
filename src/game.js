@@ -1,5 +1,7 @@
 import { DICTIONARIES, SPY_WORDS } from './words.js';
 
+const WORD_MINE_SCHEDULE_VERSION = 1;
+
 export class GameError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
@@ -36,7 +38,7 @@ export function newPlayer(name, token) {
   return { id: crypto.randomUUID(), token, name, ready: false, score: 0 };
 }
 export function createRoom(code, player, input, now) {
-  return { code, hostId: player.id, players: [player], settings: settings(input), phase: 'lobby', turn: 0, totalTurns: 0, round: null, used: [], departed: [], progress: { [player.id]: { explained: 0, guessed: 0 } }, schedule: [], updated: now };
+  return { code, hostId: player.id, players: [player], settings: settings(input), phase: 'lobby', turn: 0, totalTurns: 0, round: null, used: [], departed: [], progress: { [player.id]: { explained: 0, guessed: 0 } }, schedule: [], scheduleVersion: WORD_MINE_SCHEDULE_VERSION, updated: now };
 }
 export function joinRoom(room, player, now = Date.now()) {
   const existing = room.players.find(p => normalize(p.name) === normalize(player.name));
@@ -63,6 +65,23 @@ export function joinRoom(room, player, now = Date.now()) {
   return joined;
 }
 const activePhases = ['mining', 'explaining', 'claim'];
+
+function shuffle(items) {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function samePair({ explainerId, guesserId }, previous) {
+  return previous != null && (
+    (explainerId === previous.explainerId && guesserId === previous.guesserId) ||
+    (explainerId === previous.guesserId && guesserId === previous.explainerId)
+  );
+}
+
 function rebuildSchedule(room) {
   if (room.settings.game === 'spy') { room.totalTurns = room.settings.cycles; return; }
   const counts = structuredClone(room.progress);
@@ -74,20 +93,36 @@ function rebuildSchedule(room) {
   const ids = room.players.map(p => p.id);
   const total = id => counts[id].explained + counts[id].guessed;
   room.schedule = [];
-  // Every planned turn fills at least one missing role. Extra partner turns
-  // are allowed when departures leave unequal numbers of the two roles.
+  const addPair = pair => {
+    room.schedule.push(pair);
+    counts[pair.explainerId].explained++;
+    counts[pair.guesserId].guessed++;
+  };
   while (ids.length >= 3 && ids.some(id => counts[id].explained < target || counts[id].guessed < target)) {
-    const byRole = role => [...ids].sort((a, b) => counts[a][role] - counts[b][role] || total(a) - total(b));
+    const previous = room.schedule.at(-1) ?? room.round;
+    const completedCycles = counts[ids[0]].explained;
+    if (ids.every(id => counts[id].explained === completedCycles && counts[id].guessed === completedCycles)) {
+      // Pair each player with the next person in a shuffled ring, then shuffle the turn order.
+      const order = shuffle(ids);
+      const turns = shuffle(order.map((explainerId, i) => ({ explainerId, guesserId: order[(i + 1) % order.length] })));
+      if (samePair(turns[0], previous)) [turns[0], turns[1]] = [turns[1], turns[0]];
+      turns.forEach(addPair);
+      continue;
+    }
+
+    // After roster changes, fill missing roles first and allow extra turns to balance the totals.
+    // Three candidates per role leave alternatives for self-pairings and immediate rematches.
+    const byRole = role => shuffle(ids).sort((a, b) => counts[a][role] - counts[b][role] || total(a) - total(b)).slice(0, 3);
     const explainers = byRole('explained'), guessers = byRole('guessed');
-    const e = explainers[0], g = guessers[0];
-    const pairs = e !== g ? [[e, g]] : [[e, guessers[1]], [explainers[1], g]];
-    const deficit = ([a, b]) => Number(counts[a].explained < target) + Number(counts[b].guessed < target);
+    const pairs = explainers.flatMap(explainerId => guessers.filter(id => id !== explainerId).map(guesserId => ({ explainerId, guesserId })));
+    const explained = pair => counts[pair.explainerId].explained;
+    const guessed = pair => counts[pair.guesserId].guessed;
+    const deficit = pair => Number(explained(pair) < target) + Number(guessed(pair) < target);
     pairs.sort((a, b) => deficit(b) - deficit(a) ||
-      (counts[a[0]].explained + counts[a[1]].guessed) - (counts[b[0]].explained + counts[b[1]].guessed) ||
-      (total(a[0]) + total(a[1])) - (total(b[0]) + total(b[1])));
-    const [explainerId, guesserId] = pairs[0];
-    room.schedule.push({ explainerId, guesserId });
-    counts[explainerId].explained++; counts[guesserId].guessed++;
+      (explained(a) + guessed(a)) - (explained(b) + guessed(b)) ||
+      Number(samePair(a, previous)) - Number(samePair(b, previous)) ||
+      (total(a.explainerId) + total(a.guesserId)) - (total(b.explainerId) + total(b.guesserId)));
+    addPair(pairs[0]);
   }
   room.totalTurns = room.turn + (room.round ? 1 : 0) + room.schedule.length;
 }
@@ -111,6 +146,10 @@ function ensureState(room) {
     changed = true;
   }
   if (room.settings.game === 'spy') return changed;
+  if (room.scheduleVersion !== WORD_MINE_SCHEDULE_VERSION) {
+    room.scheduleVersion = WORD_MINE_SCHEDULE_VERSION;
+    changed = true;
+  }
   if (room.round && room.round.redrawLocked == null) {
     room.round.redrawLocked = Object.keys(room.round.mines).length > 0;
     changed = true;
@@ -163,7 +202,6 @@ function finish(room, outcome, winnerIds = [], mine = null) {
   room.phase = 'result';
   room.progress[room.round.explainerId].explained++;
   room.progress[room.round.guesserId].guessed++;
-  rebuildSchedule(room);
 }
 export function tick(room, now) {
   let changed = ensureState(room);
@@ -264,7 +302,7 @@ export function act(room, token, action, data = {}, now = Date.now()) {
   } else if (action === 'next') {
     onlyHost(); requireThat(room.phase === 'result', 'Сначала завершите ход.');
     room.turn++;
-    room.round = null; rebuildSchedule(room); startTurn(room, now);
+    startTurn(room, now);
   } else if (action === 'lobby') {
     onlyHost(); requireThat(room.phase !== 'lobby', 'Вы уже в лобби.'); resetLobby(room);
   } else if (action === 'leave' || action === 'kick') {
@@ -339,11 +377,7 @@ function startSpyRound(room) {
   room.used.push(entry);
   const [word, hint] = entry.split('|').map(v => v.trim());
   const ids = room.players.map(p => p.id);
-  const shuffled = [...ids];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
+  const shuffled = shuffle(ids);
   const spyIds = shuffled.slice(0, room.settings.spyCount ?? 1);
   const whiteId = room.settings.mrWhite ? shuffled[spyIds.length] : null;
   room.round = { id: crypto.randomUUID(), names: Object.fromEntries(room.players.map(p => [p.id, p.name])),

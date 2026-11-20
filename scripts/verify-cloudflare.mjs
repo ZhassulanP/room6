@@ -34,13 +34,21 @@ async function request(path, body, token, status = 200) {
 }
 try {
   const page = await worker.fetch(new Request('https://word-mine.test/'), { DB });
-  assert.match(await page.text(), /<title>Word Mine & Spy<\/title>/);
+  const html = await page.text();
+  assert.match(html, /<title>Word Mine & Spy<\/title>/);
+  assert.match(html, /data-language="kk"[^>]*>ҚҚ<\/button>/);
   const host = await request('/api/rooms', { name: 'Host', settings: { useDefaultWords: false, customWords: 'Самолёт' } }, null, 201);
   assert.match(host.room.code, /^[0-9]{6}$/);
   const base = '/api/rooms/' + host.room.code;
-  const guesser = await request(base + '/join', { name: 'Guesser' });
-  const miner = await request(base + '/join', { name: 'Miner' });
+  const clients = [
+    { ...host, name: 'Host' },
+    { ...await request(base + '/join', { name: 'Guest One' }), name: 'Guest One' },
+    { ...await request(base + '/join', { name: 'Guest Two' }), name: 'Guest Two' }
+  ];
   const started = await request(base + '/action', { action: 'start' }, host.token);
+  const { explainerId, guesserId } = started.room.round;
+  const guesser = clients.find(client => client.room.me === guesserId);
+  const miner = clients.find(client => ![explainerId, guesserId].includes(client.room.me));
   assert.equal(started.room.round.deadline - started.room.serverNow, 60000);
   await request(base + '/action', { action: 'mine', data: { word: 'два  слова' } }, miner.token);
   const placed = await request(base, null, miner.token);
@@ -53,14 +61,14 @@ try {
   assert.equal(hidden.room.round.word, null); assert.equal(hidden.room.round.mines, null);
   assert.equal(hidden.room.round.deadline, null);
   const result = await request(base + '/action', { action: 'guess', data: { word: 'СаМоЛеТ' } }, guesser.token);
-  assert.equal(result.room.phase, 'result'); assert.equal(result.room.players[1].score, 1);
-  const recovered = await request(base + '/join', { name: 'GUESSER' });
+  assert.equal(result.room.phase, 'result'); assert.equal(result.room.players.find(p => p.id === guesserId).score, 1);
+  const recovered = await request(base + '/join', { name: guesser.name.toUpperCase() });
   assert.equal(recovered.rejoined, true); assert.equal(recovered.room.me, guesser.room.me);
-  assert.equal(recovered.room.players.length, 3); assert.equal(recovered.room.players[1].score, 1);
+  assert.equal(recovered.room.players.length, 3); assert.equal(recovered.room.players.find(p => p.id === guesserId).score, 1);
   await request(base, null, guesser.token, 401);
-  for (const token of [miner.token, recovered.token, host.token]) await request(base + '/action', { action: 'leave' }, token);
+  for (const client of clients) await request(base + '/action', { action: 'leave' }, client === guesser ? recovered.token : client.token);
   const returned = await request(base + '/join', { name: 'HOST' });
   assert.equal(returned.room.me, host.room.me); assert.equal(returned.room.hostId, host.room.me);
-  assert.equal(returned.room.players[0].score, 1);
+  assert.equal(returned.room.players[0].score, Number([explainerId, guesserId].includes(host.room.me)));
   console.log('Cloudflare artifact verified: password-free rooms, D1 queries, roles, mines, answers, scores and nickname recovery.');
 } finally { db.close(); mock.restoreAll(); }

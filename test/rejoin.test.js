@@ -16,9 +16,10 @@ function finishTurn(room) {
 }
 test('same nickname reconnects in a full room without changing identity, role or schedule', () => {
   const room = setup(); finishTurn(room); act(room, 'host', 'next', {}, 1003);
-  const oldId = room.hostId, progress = structuredClone(room.progress), schedule = structuredClone(room.schedule), round = structuredClone(room.round);
+  const oldId = room.hostId, score = room.players.find(p => p.id === oldId).score;
+  const progress = structuredClone(room.progress), schedule = structuredClone(room.schedule), round = structuredClone(room.round);
   const restored = joinRoom(room, newPlayer('  HOST  ', 'new-host-token'), 1004);
-  assert.equal(restored.id, oldId); assert.equal(restored.score, 1); assert.equal(restored.name, 'Host');
+  assert.equal(restored.id, oldId); assert.equal(restored.score, score); assert.equal(restored.name, 'Host');
   assert.equal(room.players.length, 4); assert.equal(room.hostId, oldId);
   assert.deepEqual(room.progress, progress); assert.deepEqual(room.schedule, schedule); assert.deepEqual(room.round, round);
   assert.equal(view(room, 'new-host-token').me, oldId); assert.throws(() => view(room, 'host'));
@@ -33,7 +34,7 @@ test('an active guesser reconnects without seeing the word or mines', () => {
   assert.equal(state.round.word, null); assert.equal(state.round.mines, null); assert.throws(() => view(room, oldToken));
 });
 test('a miner reconnects with the same submitted mine', () => {
-  const room = setup(), miner = room.players[2], oldToken = miner.token;
+  const room = setup(), miner = room.players.find(p => ![room.round.explainerId, room.round.guesserId].includes(p.id)), oldToken = miner.token;
   act(room, oldToken, 'mine', { word: 'два слова' }, 1001);
   joinRoom(room, newPlayer(miner.name, 'reconnected'), 1002);
   const state = view(room, 'reconnected');
@@ -42,18 +43,18 @@ test('a miner reconnects with the same submitted mine', () => {
 });
 test('leaving and returning restores score and completed roles without reclaiming admin', () => {
   const room = setup(); finishTurn(room); act(room, 'host', 'next', {}, 1003);
-  const id = room.hostId, progress = structuredClone(room.progress[id]);
+  const id = room.hostId, score = room.players.find(p => p.id === id).score, progress = structuredClone(room.progress[id]);
   act(room, 'host', 'leave', {}, 1004); const newHost = room.hostId;
   assert.notEqual(newHost, id); assert.equal(room.departed.length, 1);
   assert.ok(!JSON.stringify(room.departed).includes('"token"'));
   assert.ok(!JSON.stringify(view(room, room.players[0].token)).includes('departed'));
   const returned = joinRoom(room, newPlayer('host', 'return-token'), 1005);
-  assert.equal(returned.id, id); assert.equal(returned.score, 1); assert.deepEqual(room.progress[id], progress);
+  assert.equal(returned.id, id); assert.equal(returned.score, score); assert.deepEqual(room.progress[id], progress);
   assert.equal(room.hostId, newHost); assert.equal(room.departed.length, 0);
 });
 test('a kicked player can rejoin by nickname without resetting their game progress', () => {
   const room = setup(); finishTurn(room);
-  const departing = room.players[1], id = departing.id, progress = structuredClone(room.progress[id]);
+  const departing = room.players.find(p => p.score === 1 && p.id !== room.hostId), id = departing.id, progress = structuredClone(room.progress[id]);
   act(room, 'host', 'kick', { playerId: id }, 1003); assert.throws(() => view(room, departing.token));
   const restored = joinRoom(room, newPlayer(departing.name, 'return-token'), 1004);
   assert.equal(restored.id, id); assert.equal(restored.score, 1); assert.deepEqual(room.progress[id], progress);
@@ -71,7 +72,7 @@ test('departed players are reset when the admin starts a new match', () => {
 });
 test('returning below three players resumes the paused game and retains earned turns', () => {
   const room = setup(3); finishTurn(room); act(room, 'host', 'next', {}, 1003);
-  const guest = room.players[1], progress = structuredClone(room.progress[guest.id]);
+  const guest = room.players.find(p => p.score === 1 && p.id !== room.hostId), progress = structuredClone(room.progress[guest.id]);
   act(room, guest.token, 'leave', {}, 1004); assert.equal(room.phase, 'paused');
   joinRoom(room, newPlayer(guest.name, 'return-token'), 1005);
   assert.equal(room.phase, 'mining'); assert.equal(room.players.length, 3);

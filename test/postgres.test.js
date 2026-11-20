@@ -38,7 +38,10 @@ test('Postgres persists across handlers and preserves concurrent multiplayer upd
     const started = await call(base + '/action', { action: 'start' }, host.token);
     assert.equal(started.room.settings.miningDuration, 60);
     assert.equal(started.room.round.deadline - started.room.serverNow, 60000);
-    const miners = clients.filter(client => ![started.room.round.explainerId, started.room.round.guesserId].includes(client.room.me));
+    const { explainerId, guesserId } = started.room.round;
+    const miners = guests.filter(client => ![explainerId, guesserId].includes(client.room.me));
+    const explainerToken = clients.find(client => client.room.me === explainerId).token;
+    const secret = (await call(base, null, explainerToken)).room.round.word;
     const [late] = await Promise.all([
       call(base + '/join', { name: 'Live joiner' }),
       call(base + '/action', { action: 'kick', data: { playerId: miners[1].room.me } }, host.token),
@@ -53,24 +56,25 @@ test('Postgres persists across handlers and preserves concurrent multiplayer upd
       ![started.room.round.explainerId, started.room.round.guesserId, miners[0].room.me].includes(c.room.me));
     await Promise.all(pending.map(c => call(base + '/action', { action: 'mine', data: { word: 'ловушка', roundId: started.room.round.id } }, c.token)));
     gameTime = started.room.round.deadline;
-    const guesserToken = clients.find(client => client.room.me === started.room.round.guesserId).token;
+    const guesserToken = clients.find(client => client.room.me === guesserId).token;
     const guesser = await call(base, null, guesserToken);
     assert.equal(guesser.room.round.word, null);
     assert.equal(guesser.room.round.mines, null);
     assert.equal(guesser.room.round.mineCount, 11);
     assert.equal(guesser.room.phase, 'explaining');
     assert.equal(guesser.room.round.deadline, null);
-    await call(base + '/action', { action: 'guess', data: { word: started.room.round.word.toUpperCase() } }, guesserToken);
+    await call(base + '/action', { action: 'guess', data: { word: secret.toUpperCase() } }, guesserToken);
     const result = await call(base, null, host.token);
     assert.equal(result.room.phase, 'result');
-    assert.equal(result.room.players[0].score, 1);
-    assert.equal(result.room.players[1].score, 1);
-    assert.equal(result.room.players[0].turnsExplained, 1);
-    assert.equal(result.room.players[1].turnsGuessed, 1);
+    const explainerResult = result.room.players.find(p => p.id === explainerId);
+    const guesserResult = result.room.players.find(p => p.id === guesserId);
+    assert.equal(explainerResult.score, 1); assert.equal(explainerResult.turnsExplained, 1);
+    assert.equal(guesserResult.score, 1); assert.equal(guesserResult.turnsGuessed, 1);
+    const hostResult = result.room.players.find(p => p.id === host.room.me);
     const recovered = await call(base + '/join', { name: 'POSTGRES SMOKE HOST' });
     assert.equal(recovered.rejoined, true); assert.equal(recovered.room.me, host.room.me);
-    assert.equal(recovered.room.players.length, 13); assert.equal(recovered.room.players[0].score, 1);
-    assert.equal(recovered.room.players[0].turnsExplained, 1);
+    assert.equal(recovered.room.players.length, 13);
+    assert.deepEqual(recovered.room.players.find(p => p.id === host.room.me), hostResult);
     const oldSession = await api(new Request('https://game.test' + base, { headers: { Authorization: `Bearer ${host.token}` } }), createPostgresStore(connection));
     assert.equal(oldSession.status, 401); host.token = recovered.token;
     const storeA = createPostgresStore(connection), storeB = createPostgresStore(connection);
@@ -90,7 +94,7 @@ test('Postgres persists across handlers and preserves concurrent multiplayer upd
     }));
     assert.equal(rewrittenPost.status, 200);
     assert.equal((await rewrittenPost.json()).room.phase, 'mining');
-    await call(base + '/action', { action: 'leave' }, guesserToken);
+    await call(base + '/action', { action: 'leave' }, guesserId === host.room.me ? host.token : guesserToken);
     const occupied = await storeA.get(code);
     assert.equal(await storeB.create({ ...occupied.room, players: [] }), false);
     occupied.room.players = [];

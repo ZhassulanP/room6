@@ -14,8 +14,11 @@ function begin(room,now=1000) {
   room.players.forEach(p=>act(room,p.token,'ready',{},now));
   act(room,room.players[0].token,'start',{},now);
 }
+const explainer = room => room.players.find(p => p.id === room.round.explainerId);
+const guesser = room => room.players.find(p => p.id === room.round.guesserId);
+const miners = room => room.players.filter(p => ![room.round.explainerId, room.round.guesserId].includes(p.id));
 function mine(room,now=1001) {
-  room.players.slice(2).forEach((p,i)=>act(room,p.token,'mine',{word:i===0?'ловушка':'опасность'},now));
+  miners(room).forEach((p,i)=>act(room,p.token,'mine',{word:i===0?'ловушка':'опасность'},now));
   tick(room,room.round.deadline);
 }
 test('more than ten players, custom capacity and uncapped rooms',()=>{
@@ -39,81 +42,85 @@ test('host can start with three players without readiness; others cannot',()=>{
   assert.throws(()=>act(r,'token-1','start'),/ведущему/);
   assert.ok(r.players.every(p=>!p.ready));act(r,'token-0','start',{},1000);assert.equal(r.phase,'mining');
   joinRoom(r,newPlayer('Поздно','late'),1001);assert.equal(r.players.length,4);assert.equal(r.phase,'mining');
-  assert.throws(()=>act(r,'token-1','mine',{word:'ловушка'},1001),/минёры/);
+  assert.throws(()=>act(r,guesser(r).token,'mine',{word:'ловушка'},1001),/минёры/);
 });
 test('mines accept phrases and punctuation up to 20 characters, counting spaces',()=>{
   for(const word of ['я','два слова','два  слова','ну, может быть?','а'.repeat(9)+'  '+'б'.repeat(9)]) {
     const r=setup(3,{useDefaultWords:false,customWords:'Самолёт'});begin(r);
-    act(r,'token-2','mine',{word},1001);
-    assert.equal(r.round.mines[r.players[2].id],word);
+    const [miner]=miners(r);
+    act(r,miner.token,'mine',{word},1001);
+    assert.equal(r.round.mines[miner.id],word);
     assert.equal(r.phase,'mining');
   }
   for(const word of ['','   ','а'.repeat(21),'а'.repeat(10)+' '+'б'.repeat(10)]) {
     const r=setup();begin(r);
-    assert.throws(()=>act(r,'token-2','mine',{word},1001),/от 1 до 20 символов/);
+    assert.throws(()=>act(r,miners(r)[0].token,'mine',{word},1001),/от 1 до 20 символов/);
     assert.equal(r.phase,'mining');assert.deepEqual(r.round.mines,{});
   }
 });
 test('redacts secrets from the active pair, player credentials and custom dictionary',()=>{
   const r=setup(4,{customWords:'Только секретный словарь'});begin(r);
-  act(r,'token-2','mine',{word:'ловушка'},1001);
-  const guesser=view(r,'token-1');
-  assert.equal(guesser.round.word,null);assert.equal(guesser.round.mines,null);assert.equal(guesser.round.myMine,null);
-  assert.equal(guesser.settings.customWords,'');
-  assert.ok(!JSON.stringify(guesser).includes('token-'));assert.ok(!JSON.stringify(guesser).includes(r.round.word));
-  const explainer=view(r,'token-0');assert.equal(explainer.round.word,r.round.word);assert.equal(explainer.round.mines,null);
-  assert.equal(view(r,'token-2').round.myMine,'ловушка');assert.equal(view(r,'token-3').round.myMine,null);
+  const [a,b]=miners(r);
+  act(r,a.token,'mine',{word:'ловушка'},1001);
+  const guesserView=view(r,guesser(r).token);
+  assert.equal(guesserView.round.word,null);assert.equal(guesserView.round.mines,null);assert.equal(guesserView.round.myMine,null);
+  assert.equal(guesserView.settings.customWords,'');
+  assert.ok(!JSON.stringify(guesserView).includes('token-'));assert.ok(!JSON.stringify(guesserView).includes(r.round.word));
+  const explainerView=view(r,explainer(r).token);assert.equal(explainerView.round.word,r.round.word);assert.equal(explainerView.round.mines,null);
+  assert.equal(view(r,a.token).round.myMine,'ловушка');assert.equal(view(r,b.token).round.myMine,null);
   assert.throws(()=>view(r,'invalid'),/снова/);
 });
 test('miners see submitted mines before submitting their own and throughout the turn',()=>{
   const r=setup(4);begin(r);
-  assert.deepEqual(view(r,'token-3').round.mines,{});
-  act(r,'token-2','mine',{word:'ловушка'},1001);
+  const [a,b]=miners(r);
+  assert.deepEqual(view(r,b.token).round.mines,{});
+  act(r,a.token,'mine',{word:'ловушка'},1001);
   assert.equal(r.phase,'mining');
-  assert.equal(view(r,'token-3').round.myMine,null);
-  assert.deepEqual(view(r,'token-3').round.mines,{[r.players[2].id]:'ловушка'});
-  act(r,'token-3','mine',{word:'опасность'},1002);
+  assert.equal(view(r,b.token).round.myMine,null);
+  assert.deepEqual(view(r,b.token).round.mines,{[a.id]:'ловушка'});
+  act(r,b.token,'mine',{word:'опасность'},1002);
   assert.equal(r.phase,'mining');
   tick(r,r.round.deadline);
   assert.equal(r.phase,'explaining');
   const checkVisibility=()=>{
-    for(const token of ['token-2','token-3']) assert.deepEqual(view(r,token).round.mines,r.round.mines);
-    for(const token of ['token-0','token-1']) assert.equal(view(r,token).round.mines,null);
-    assert.equal(view(r,'token-1').round.word,null);
+    for(const p of [a,b]) assert.deepEqual(view(r,p.token).round.mines,r.round.mines);
+    for(const p of [explainer(r),guesser(r)]) assert.equal(view(r,p.token).round.mines,null);
+    assert.equal(view(r,guesser(r).token).round.word,null);
   };
   checkVisibility();
-  act(r,'token-2','claim',{},1003);checkVisibility();
+  act(r,a.token,'claim',{},1003);checkVisibility();
   act(r,'token-0','resolve',{accept:false},1004);checkVisibility();
   act(r,'token-0','guessed',{},1005);
   for(const p of r.players)assert.deepEqual(view(r,p.token).round.mines,r.round.mines);
   act(r,'token-0','next',{},1006);
-  assert.equal(view(r,'token-0').round.role,'miner');
-  assert.deepEqual(view(r,'token-0').round.mines,{});
-  const nextGuesser=r.players.find(p=>p.id===r.round.guesserId);
-  assert.equal(view(r,nextGuesser.token).round.role,'guesser');
-  assert.equal(view(r,nextGuesser.token).round.mines,null);
+  assert.equal(view(r,miners(r)[0].token).round.role,'miner');
+  assert.deepEqual(view(r,miners(r)[0].token).round.mines,{});
+  assert.equal(view(r,guesser(r).token).round.role,'guesser');
+  assert.equal(view(r,guesser(r).token).round.mines,null);
 });
 test('correct guesses score exactly once; roles rotate and game finishes',()=>{
   const r=setup(3,{useDefaultWords:false,customWords:'Ёлка, Самолёт, Кит'});begin(r);mine(r);
-  act(r,'token-1','guess',{word:r.round.word.toLowerCase().replaceAll('ё','е')},1002);
-  assert.equal(r.phase,'result');assert.deepEqual(r.players.map(p=>p.score),[1,1,0]);
+  const explaining=explainer(r), guessing=guesser(r), [miner]=miners(r);
+  act(r,guessing.token,'guess',{word:r.round.word.toLowerCase().replaceAll('ё','е')},1002);
+  assert.equal(r.phase,'result');assert.deepEqual([explaining.score,guessing.score,miner.score],[1,1,0]);
   assert.throws(()=>act(r,'token-0','guessed',{},1003),/завершён/);
   act(r,'token-0','next',{},1004);
-  assert.notEqual(r.round.explainerId,r.players[0].id);assert.notEqual(r.round.guesserId,r.players[1].id);
+  assert.notEqual(r.round.explainerId,explaining.id);assert.notEqual(r.round.guesserId,guessing.id);
   for(let i=0;i<2;i++){act(r,'token-0','skip',{},1005);act(r,'token-0','next',{},1006);}
   assert.equal(r.phase,'finished');assert.equal(r.turn,3);
 });
 test('mine claims keep guessing untimed; duplicate mines are case insensitive',()=>{
   const r=setup(4);begin(r);
-  act(r,'token-2','mine',{word:'ловушка'},1001);act(r,'token-3','mine',{word:'ЛОВУШКА'},1001);
+  const [a,b]=miners(r), nonHost=[a,b].find(p=>p.id!==r.hostId);
+  act(r,a.token,'mine',{word:'ловушка'},1001);act(r,b.token,'mine',{word:'ЛОВУШКА'},1001);
   tick(r,r.round.deadline);
-  act(r,'token-2','claim',{},2000);
+  act(r,a.token,'claim',{},2000);
   assert.equal(r.phase,'claim');assert.equal(r.round.deadline,null);assert.equal(tick(r,999999),false);
-  assert.throws(()=>act(r,'token-2','resolve',{accept:true},3000),/ведущему/);
+  assert.throws(()=>act(r,nonHost.token,'resolve',{accept:true},3000),/ведущему/);
   act(r,'token-0','resolve',{accept:false},4000);assert.equal(r.round.deadline,null);
   assert.equal(tick(r,999999),false);assert.equal(r.phase,'explaining');
-  act(r,'token-3','claim',{},4001);act(r,'token-0','resolve',{accept:true},4002);
-  assert.equal(r.phase,'result');assert.deepEqual(r.players.map(p=>p.score),[0,0,1,1]);
+  act(r,b.token,'claim',{},4001);act(r,'token-0','resolve',{accept:true},4002);
+  assert.equal(r.phase,'result');assert.deepEqual([explainer(r).score,guesser(r).score,a.score,b.score],[0,0,1,1]);
 });
 test('mining lasts 60 seconds and guessing never times out',()=>{
   const r=setup(3,{miningDuration:15,duration:15});begin(r);
@@ -121,7 +128,7 @@ test('mining lasts 60 seconds and guessing never times out',()=>{
   assert.equal(tick(r,60999),false);assert.equal(r.phase,'mining');
   assert.equal(tick(r,61000),true);assert.equal(r.phase,'explaining');assert.equal(r.round.deadline,null);
   tick(r,1000000000);assert.equal(r.phase,'explaining');
-  act(r,'token-1','guess',{word:r.round.word},1000000000);assert.equal(r.phase,'result');
+  act(r,guesser(r).token,'guess',{word:r.round.word},1000000000);assert.equal(r.phase,'result');
   const offline=setup();begin(offline);tick(offline,1000000);assert.equal(offline.phase,'explaining');
 });
 test('existing rooms adopt the new timers without ending their current turn',()=>{
@@ -131,16 +138,16 @@ test('existing rooms adopt the new timers without ending their current turn',()=
   const explaining=setup();begin(explaining);mine(explaining);
   explaining.settings.duration=90;explaining.round.deadline=91001;
   tick(explaining,999999);assert.equal(explaining.phase,'explaining');assert.equal(explaining.round.deadline,null);
-  explaining.phase='claim';explaining.round.claim={playerId:explaining.players[2].id,word:'ловушка',remaining:10000};
+  explaining.phase='claim';explaining.round.claim={playerId:miners(explaining)[0].id,word:'ловушка',remaining:10000};
   act(explaining,'token-0','resolve',{accept:false},1000000);assert.equal(explaining.round.deadline,null);
 });
 test('answers ignore upper/lower case and ё/е in either direction',()=>{
   for(const [word,answer] of [['Самолёт','САМОЛЁТ'],['Самолёт','самолет'],['самолёт','СаМоЛёТ'],['САМОЛЕТ','Самолёт']]) {
     const r=setup(3,{useDefaultWords:false,customWords:word});begin(r);mine(r);
-    act(r,'token-1','guess',{word:answer},1002);assert.equal(r.phase,'result');assert.equal(r.round.result.outcome,'guessed');
+    act(r,guesser(r).token,'guess',{word:answer},1002);assert.equal(r.phase,'result');assert.equal(r.round.result.outcome,'guessed');
   }
   const r=setup(3,{useDefaultWords:false,customWords:'Самолёт'});begin(r);
-  assert.throws(()=>act(r,'token-2','mine',{word:'САМОЛЕТ'},1001),/не может быть миной/);
+  assert.throws(()=>act(r,miners(r)[0].token,'mine',{word:'САМОЛЕТ'},1001),/не может быть миной/);
 });
 test('leaving transfers hosting and pauses an interrupted game below three players',()=>{
   const r=setup();begin(r);act(r,'token-0','leave',{},1001);
@@ -214,12 +221,13 @@ test('built-in vocabulary contains exactly 500 distinct playable words',()=>{
 test('only the explainer can redraw before the first mine without advancing roles or scores',()=>{
   const r=setup(4);begin(r);
   const previous=structuredClone(r);
-  assert.equal(view(r,'token-0').round.canRedraw,true);
-  for(const token of ['token-1','token-2']) {
+  const explaining=explainer(r).token, guessing=guesser(r).token, miner=miners(r)[0].token;
+  assert.equal(view(r,explaining).round.canRedraw,true);
+  for(const token of [guessing,miner]) {
     assert.equal(view(r,token).round.canRedraw,false);
     assert.throws(()=>act(r,token,'redraw',{roundId:r.round.id},1001),/только объясняющий/);
   }
-  act(r,'token-0','redraw',{roundId:previous.round.id},2000);
+  act(r,explaining,'redraw',{roundId:previous.round.id},2000);
   assert.equal(r.phase,'mining');assert.notEqual(r.round.word,previous.round.word);
   assert.notEqual(r.round.id,previous.round.id);assert.equal(r.round.deadline,62000);
   assert.equal(r.round.explainerId,previous.round.explainerId);assert.equal(r.round.guesserId,previous.round.guesserId);
@@ -227,75 +235,79 @@ test('only the explainer can redraw before the first mine without advancing role
   assert.deepEqual(r.schedule,previous.schedule);assert.deepEqual(r.progress,previous.progress);
   assert.deepEqual(r.players,previous.players);assert.deepEqual(r.round.mines,{});
   assert.ok(r.used.includes(previous.round.word));assert.ok(r.used.includes(r.round.word));
-  assert.equal(view(r,'token-1').round.word,null);
-  assert.throws(()=>act(r,'token-0','redraw',{roundId:previous.round.id},2001),/ход уже сменился/);
-  assert.throws(()=>act(r,'token-0','redraw',{},2001),/ход уже сменился/);
-  assert.throws(()=>act(r,'token-2','mine',{word:'ловушка',roundId:previous.round.id},2001),/ход уже сменился/);
+  assert.equal(view(r,guessing).round.word,null);
+  assert.throws(()=>act(r,explaining,'redraw',{roundId:previous.round.id},2001),/ход уже сменился/);
+  assert.throws(()=>act(r,explaining,'redraw',{},2001),/ход уже сменился/);
+  assert.throws(()=>act(r,miner,'mine',{word:'ловушка',roundId:previous.round.id},2001),/ход уже сменился/);
 });
 test('redraw uses custom words, avoids the current word on exhaustion and handles a single unique word',()=>{
   const r=setup(3,{useDefaultWords:false,customWords:'Кит, Дом'});begin(r);
   const first=r.round.word;
-  act(r,'token-0','redraw',{roundId:r.round.id},1001);assert.notEqual(r.round.word,first);
-  act(r,'token-0','redraw',{roundId:r.round.id},1002);assert.equal(r.round.word,first);
+  act(r,explainer(r).token,'redraw',{roundId:r.round.id},1001);assert.notEqual(r.round.word,first);
+  act(r,explainer(r).token,'redraw',{roundId:r.round.id},1002);assert.equal(r.round.word,first);
   for(const customWords of ['Кит','Ёлка, ЕЛКА']) {
     const single=setup(3,{useDefaultWords:false,customWords});begin(single);
-    assert.equal(view(single,'token-0').round.canRedraw,false);
+    const token=explainer(single).token;
+    assert.equal(view(single,token).round.canRedraw,false);
     const previous=structuredClone(single.round);
-    assert.throws(()=>act(single,'token-0','redraw',{roundId:single.round.id},1001),/нет другого слова/);
+    assert.throws(()=>act(single,token,'redraw',{roundId:single.round.id},1001),/нет другого слова/);
     assert.deepEqual(single.round,previous);
   }
 });
 test('the first mine locks redraw even if its author leaves, including older rooms',()=>{
   for(const legacy of [false,true]) {
     const r=setup(4);begin(r);
-    act(r,'token-2','mine',{word:'ловушка'},1001);
+    const [miner]=miners(r), token=explainer(r).token;
+    act(r,miner.token,'mine',{word:'ловушка'},1001);
     if(legacy) delete r.round.redrawLocked;
-    assert.equal(view(r,'token-0').round.canRedraw,false);
-    assert.throws(()=>act(r,'token-0','redraw',{roundId:r.round.id},1002),/Первая мина/);
-    act(r,'token-2','leave',{},1003);
+    assert.equal(view(r,token).round.canRedraw,false);
+    assert.throws(()=>act(r,token,'redraw',{roundId:r.round.id},1002),/Первая мина/);
+    act(r,miner.token,'leave',{},1003);
     assert.deepEqual(r.round.mines,{});assert.equal(r.phase,'mining');
-    assert.equal(view(r,'token-0').round.canRedraw,false);
-    assert.throws(()=>act(r,'token-0','redraw',{roundId:r.round.id},1004),/Первая мина/);
+    assert.equal(view(r,token).round.canRedraw,false);
+    assert.throws(()=>act(r,token,'redraw',{roundId:r.round.id},1004),/Первая мина/);
   }
 });
 test('mine replacements stay editable for all 60 seconds and freeze exactly at the deadline',()=>{
   const r=setup(4,{useDefaultWords:false,customWords:'Самолёт'});begin(r);
-  const deadline=r.round.deadline;
-  act(r,'token-2','mine',{word:'крыло'},1001);
-  act(r,'token-3','mine',{word:'пилот'},1002);
+  const deadline=r.round.deadline, [a,b]=miners(r), explaining=explainer(r).token, guessing=guesser(r).token;
+  act(r,a.token,'mine',{word:'крыло'},1001);
+  act(r,b.token,'mine',{word:'пилот'},1002);
   assert.equal(r.phase,'mining');assert.equal(r.round.deadline,deadline);
-  act(r,'token-2','mine',{word:'аэропорт'},deadline-1);
+  act(r,a.token,'mine',{word:'аэропорт'},deadline-1);
   assert.equal(r.phase,'mining');assert.equal(r.round.deadline,deadline);
-  assert.equal(view(r,'token-2').round.mineCount,2);
-  assert.equal(view(r,'token-3').round.mines[r.players[2].id],'аэропорт');
-  assert.equal(view(r,'token-0').round.mines,null);assert.equal(view(r,'token-1').round.mines,null);
+  assert.equal(view(r,a.token).round.mineCount,2);
+  assert.equal(view(r,b.token).round.mines[a.id],'аэропорт');
+  assert.equal(view(r,explaining).round.mines,null);assert.equal(view(r,guessing).round.mines,null);
   for(const word of ['', 'а'.repeat(21),'САМОЛЕТ']) {
-    assert.throws(()=>act(r,'token-2','mine',{word},deadline-1));
-    assert.equal(r.round.mines[r.players[2].id],'аэропорт');
+    assert.throws(()=>act(r,a.token,'mine',{word},deadline-1));
+    assert.equal(r.round.mines[a.id],'аэропорт');
   }
-  assert.throws(()=>act(r,'token-0','mine',{word:'чужая'},deadline-1),/только минёры/);
-  assert.throws(()=>act(r,'token-2','mine',{word:'поздно'},deadline),/завершено/);
+  assert.throws(()=>act(r,explaining,'mine',{word:'чужая'},deadline-1),/только минёры/);
+  assert.throws(()=>act(r,a.token,'mine',{word:'поздно'},deadline),/завершено/);
   assert.equal(r.phase,'explaining');assert.equal(r.round.deadline,null);
-  assert.equal(view(r,'token-0').round.canRedraw,false);
-  assert.throws(()=>act(r,'token-0','redraw',{roundId:r.round.id},deadline),/до установки мин/);
-  act(r,'token-2','claim',{},deadline+1);
+  assert.equal(view(r,explaining).round.canRedraw,false);
+  assert.throws(()=>act(r,explaining,'redraw',{roundId:r.round.id},deadline),/до установки мин/);
+  act(r,a.token,'claim',{},deadline+1);
   assert.equal(r.round.claim.word,'аэропорт');
 });
 test('redraw is unavailable once the 60 seconds expire even without any mines',()=>{
   const r=setup();begin(r);const previous=structuredClone(r.round);
-  assert.throws(()=>act(r,'token-0','redraw',{roundId:r.round.id},r.round.deadline),/до установки мин/);
+  const token=explainer(r).token;
+  assert.throws(()=>act(r,token,'redraw',{roundId:r.round.id},r.round.deadline),/до установки мин/);
   assert.equal(r.phase,'explaining');assert.equal(r.round.word,previous.word);
-  assert.equal(r.round.id,previous.id);assert.equal(view(r,'token-0').round.canRedraw,false);
+  assert.equal(r.round.id,previous.id);assert.equal(view(r,token).round.canRedraw,false);
 });
 test('a concurrent redraw and first mine cannot apply to different words',async()=>{
   const store=memoryStore(),created=await call(store,'/api/rooms',{name:'Host'});
   const base=`/api/rooms/${created.room.code}`;
-  await call(store,base+'/join',{name:'Guesser'});
-  const miner=await call(store,base+'/join',{name:'Miner'});
+  const clients=[created,await call(store,base+'/join',{name:'Guest 1'}),await call(store,base+'/join',{name:'Guest 2'})];
   const started=await call(store,base+'/action',{action:'start'},created.token);
-  const roundId=started.room.round.id;
+  const {id:roundId,explainerId,guesserId}=started.room.round;
+  const explaining=clients.find(client=>client.room.me===explainerId);
+  const miner=clients.find(client=>![explainerId,guesserId].includes(client.room.me));
   const outcomes=await Promise.all([
-    call(store,base+'/action',{action:'redraw',data:{roundId}},created.token),
+    call(store,base+'/action',{action:'redraw',data:{roundId}},explaining.token),
     call(store,base+'/action',{action:'mine',data:{roundId,word:'ловушка'}},miner.token)
   ]);
   assert.equal(outcomes.filter(r=>r.status===200).length,1);

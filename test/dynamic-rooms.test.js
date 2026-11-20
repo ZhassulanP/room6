@@ -35,10 +35,40 @@ function finishGame(room) {
 }
 test('stable rosters get exactly one turn in each role per configured cycle', () => {
   for (let count = 3; count <= 12; count++) for (let cycles = 1; cycles <= 3; cycles++) {
-    const room = setup(count, cycles); finishGame(room);
+    const room = setup(count, cycles);
+    let previousPair;
+    for (let cycle = 0; cycle < cycles; cycle++) {
+      const explainers = new Set(), guessers = new Set(), pairs = new Set();
+      for (let turn = 0; turn < count; turn++) {
+        const { explainerId, guesserId } = room.round;
+        const pair = [explainerId, guesserId].sort().join(':');
+        assert.notEqual(pair, previousPair);
+        previousPair = pair;
+        explainers.add(explainerId); guessers.add(guesserId); pairs.add(pair);
+        complete(room);
+      }
+      assert.equal(explainers.size, count); assert.equal(guessers.size, count); assert.equal(pairs.size, count);
+    }
+    assert.equal(room.phase, 'finished');
     assert.equal(room.turn, count * cycles);
     for (const p of room.players) assert.deepEqual(room.progress[p.id], { explained: cycles, guessed: cycles });
   }
+});
+test('fresh games vary which players are paired', context => {
+  let roll;
+  context.mock.method(crypto, 'getRandomValues', values => {
+    values[0] = roll;
+    return values;
+  });
+  const matchups = new Set();
+  for (roll = 0; roll < 8; roll++) {
+    const room = setup(4);
+    const playerIndex = id => room.players.findIndex(p => p.id === id);
+    const pairs = [room.round, ...room.schedule].map(({ explainerId, guesserId }) =>
+      [playerIndex(explainerId), playerIndex(guesserId)].sort().join(':'));
+    matchups.add(pairs.sort().join(','));
+  }
+  assert.ok(matchups.size > 1);
 });
 test('a join during mining preserves the word, deadline and mines and adds balanced turns', () => {
   const room = setup(); const miner = miners(room)[0];
@@ -71,7 +101,8 @@ test('joins during guessing or a claim never restart the turn or become the curr
   }
 });
 test('kicking an unsubmitted miner preserves the full mining window', () => {
-  const room = setup(); const [a, b] = miners(room); const roundId = room.round.id;
+  const room = setup(); const roundId = room.round.id;
+  const b = miners(room).find(p => p.id !== room.hostId), a = miners(room).find(p => p.id !== b.id);
   act(room, a.token, 'mine', { word: 'ловушка' }, 1001);
   act(room, 'host', 'kick', { playerId: b.id }, 1002);
   assert.equal(room.round.id, roundId); assert.equal(room.phase, 'mining');
@@ -79,7 +110,8 @@ test('kicking an unsubmitted miner preserves the full mining window', () => {
   assert.throws(() => view(room, b.token)); finishGame(room);
 });
 test('removing a miner deletes their mine and clears their pending claim', () => {
-  const room = setup(5); const [a, b] = miners(room);
+  const room = setup(5);
+  const a = miners(room).find(p => p.id !== room.hostId), b = miners(room).find(p => p.id !== a.id);
   for (const p of miners(room)) act(room, p.token, 'mine', { word: 'ловушка' }, 1001);
   tick(room, room.round.deadline);
   act(room, a.token, 'claim', {}, 1002); const roundId = room.round.id;
@@ -110,8 +142,10 @@ test('removing either active player restarts with a fresh word and preserves sco
   }
 });
 test('the host can kick an active guesser without resetting the game to the lobby', () => {
-  const room = setup(4, 2); const old = room.round.id;
-  act(room, 'host', 'kick', { playerId: room.round.guesserId }, 1001);
+  const room = setup(4, 2);
+  if (room.round.guesserId === room.hostId) complete(room, 1001);
+  const old = room.round.id;
+  act(room, 'host', 'kick', { playerId: room.round.guesserId }, 1002);
   assert.equal(room.phase, 'mining'); assert.notEqual(room.round.id, old); assert.equal(room.players.length, 3);
   finishGame(room);
 });
@@ -152,6 +186,21 @@ test('legacy rooms retain roles already completed when adopting dynamic scheduli
   assert.deepEqual(room.progress[room.players[0].id], { explained: 1, guessed: 0 });
   assert.deepEqual(room.progress[room.players[1].id], { explained: 1, guessed: 1 });
   assert.deepEqual(room.progress[room.players[2].id], { explained: 0, guessed: 1 });
+  finishGame(room);
+});
+test('saved schedules are reshuffled without replacing the current round', () => {
+  const room = setup(4);
+  const round = structuredClone(room.round);
+  delete room.scheduleVersion;
+  room.schedule = [{ explainerId: round.guesserId, guesserId: round.explainerId }];
+  assert.equal(tick(room, 1001), true);
+  assert.deepEqual(room.round, round);
+  assert.notDeepEqual(room.schedule[0], { explainerId: round.guesserId, guesserId: round.explainerId });
+  const schedule = structuredClone(room.schedule);
+  complete(room);
+  assert.equal(room.round.explainerId, schedule[0].explainerId);
+  assert.equal(room.round.guesserId, schedule[0].guesserId);
+  assert.deepEqual(room.schedule, schedule.slice(1));
   finishGame(room);
 });
 test('repeated roster changes preserve completed roles and still finish fairly', () => {
