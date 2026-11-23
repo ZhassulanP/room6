@@ -14,6 +14,8 @@ const revealedRoles = new Set();
 let sceneKey = '';
 let scoreMotion = new Map();
 let gameTransition = null;
+let mineAudio = null;
+let lastMineTick = null;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 function readStoredValue(storage, key, legacyKey) {
   const current = storage.getItem(key);
@@ -248,6 +250,38 @@ function finished() {
   const leaders=room.players.filter(p=>p.score===highest);
   return `<section class="panel"><div class="result-heading"><h2>${leaders.length===1?tr('winner',{name:leaders[0].name}):tr('tied')}</h2>${leaders.length>1?`<p>${tr('tiedNames',{names:leaders.map(p=>p.name).join(', ')})}</p>`:''}</div>${scoreboard()}${isHost()?`<button class="primary full" data-action="lobby">${tr('playAgain')} →</button>`:`<p class="subtext">${tr('waitNewGame')}</p>`}</section>`;
 }
+function enableMineAudio(event) {
+  if (!event.isTrusted || mineAudio?.state === 'running') return;
+  const AudioContext = window.AudioContext ?? window.webkitAudioContext;
+  if (!AudioContext) return;
+  try {
+    mineAudio ??= new AudioContext();
+    mineAudio.resume().then(updateTimer).catch(() => {});
+  } catch {} // Audio is optional on browsers that block it.
+}
+document.addEventListener('click', enableMineAudio, true);
+document.addEventListener('keydown', enableMineAudio, true);
+
+function tickMineCountdown(seconds) {
+  const round = room.round;
+  if (room.phase !== 'mining' || round.role !== 'miner' || round.myMine || seconds < 1 || seconds > 15) return;
+  if (mineAudio?.state !== 'running') return;
+  if (lastMineTick?.roundId === round.id && lastMineTick.seconds <= seconds) return;
+  lastMineTick = { roundId: round.id, seconds };
+
+  const now = mineAudio.currentTime;
+  const tick = mineAudio.createOscillator();
+  const volume = mineAudio.createGain();
+  tick.frequency.setValueAtTime(seconds % 2 ? 1200 : 900, now);
+  tick.frequency.exponentialRampToValueAtTime(450, now + 0.035);
+  volume.gain.setValueAtTime(0, now);
+  volume.gain.linearRampToValueAtTime(0.07, now + 0.003);
+  volume.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+  tick.connect(volume).connect(mineAudio.destination);
+  tick.onended = () => volume.disconnect();
+  tick.start(now);
+  tick.stop(now + 0.04);
+}
 function updateTimer() {
   const element=$('#timer'); if(!element||!room?.round)return;
   const deadline=room.round.deadline;
@@ -257,6 +291,7 @@ function updateTimer() {
   const seconds=Math.max(0,Math.ceil((deadline-Date.now()-offset)/1000));
   element.textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;
   element.classList.toggle('low',seconds<=10);
+  tickMineCountdown(seconds);
 }
 async function mutate(action,data={}) {
   if(busy)return false;busy=true;
