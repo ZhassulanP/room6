@@ -60,6 +60,11 @@ function toast(message) {
 $('#rules-button').onclick = () => { localizeShell(); $('#rules').showModal(); };
 $('#close-rules').onclick = () => $('#rules').close();
 $('#rules').addEventListener('click', e => { if (e.target === e.currentTarget) { const r = e.currentTarget.getBoundingClientRect(); if (e.clientX < r.left || e.clientY < r.top || e.clientX > r.right || e.clientY > r.bottom) e.currentTarget.close(); } });
+$('.brand').addEventListener('click', event => {
+  if (!room || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  confirmLeave();
+});
 
 const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7"/></svg>';
 function gameArt(game) {
@@ -172,7 +177,7 @@ function renderRoom() {
   if(previousSwitch && $('#game-switch')) $('#game-switch').replaceWith(previousSwitch);
   bindGameSwitch(previousThumbTransform);
   $('#invite-button').onclick=copyInvite;
-  $('#leave-button').onclick=()=>confirmAction(t('leaveTitle'),t(room.phase==='lobby'?'leaveLobby':'leaveGame'),t('leave'),()=>mutate('leave'));
+  $('#leave-button').onclick=confirmLeave;
   document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>confirmAction(t('removeTitle'),t('removeMessage',{name:playerName(b.dataset.kick)}),t('remove'),()=>mutate('kick',{playerId:b.dataset.kick})));
   document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>mutate(b.dataset.action));
   $('#lobby-button')?.addEventListener('click',()=>confirmAction(t('lobbyTitle'),t('lobbyMessage'),t('toLobby'),()=>mutate('lobby')));
@@ -265,6 +270,13 @@ async function mutate(action,data={}) {
   } catch(e){toast(e.message);if(e.status===401||e.status===404)lostRoom(e.message);return false;}
   finally{busy=false;if(room){signature='';if(!gameTransition)renderRoom();}else if($('#entry-form [type=submit]'))$('#entry-form [type=submit]').disabled=false;}
 }
+function confirmLeave() {
+  if (busy) return;
+  const leavingSession = session;
+  confirmAction(t('leaveTitle'), t(room.phase === 'lobby' ? 'leaveLobby' : 'leaveGame'), t('leave'), () => {
+    if (session === leavingSession) mutate('leave');
+  });
+}
 function confirmAction(title,message,label,callback) {
   const dialog=document.createElement('dialog');dialog.className='dialog';
   dialog.innerHTML=`<h2>${esc(title)}</h2><p class="confirmation-text">${esc(message)}</p><div class="confirm-actions"><button class="secondary" id="cancel-confirm">${tr('cancel')}</button><button class="primary" id="accept-confirm">${esc(label)}</button></div>`;
@@ -280,13 +292,27 @@ async function copyInvite() {
 }
 function clearSession(){session=null;try{sessionStorage.removeItem('word-mine-session');sessionStorage.removeItem('acm-session');}catch{}}
 function lostRoom(message){clearSession();room=null;signature='';entry();toast(message);}
-async function poll(){if(!session||busy||polling||document.hidden)return;polling=true;try{const result=await request(`/api/rooms/${session.code}`);accept(result.room);}catch(e){if(e.status===401||e.status===404)lostRoom(e.message);else{connected=false;$('#connection')?.removeAttribute('hidden');}}finally{polling=false;}}
-setInterval(poll,1200);setInterval(updateTimer,250);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll();});
+async function poll() {
+  if (!session || busy || polling || document.hidden) return;
+  const pollingSession = session;
+  polling = true;
+  try {
+    const result = await request(`/api/rooms/${pollingSession.code}`);
+    if (session === pollingSession) accept(result.room);
+  } catch (error) {
+    if (session !== pollingSession) return;
+    if (error.status === 401 || error.status === 404) lostRoom(error.message);
+    else { connected = false; $('#connection')?.removeAttribute('hidden'); }
+  } finally {
+    polling = false;
+  }
+}
 if(session&&(!new URLSearchParams(location.search).get('room')||new URLSearchParams(location.search).get('room').toUpperCase()===session.code)){
   try{const result=await request(`/api/rooms/${session.code}`);history.replaceState(null,'',`/?room=${session.code}`);accept(result.room);}
   catch(e){if(e.status===401||e.status===404)clearSession();entry();toast(e.message);}
 }else{clearSession();entry();}
+setInterval(poll,1200);setInterval(updateTimer,250);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll();});
 
 function bindSpy() {
   $('#role-settings-form')?.addEventListener('submit', e => { e.preventDefault(); const d=Object.fromEntries(new FormData(e.currentTarget)); d.mrWhite=$('#next-white').checked; mutate('spy-settings',d).then(success=>{if(success)toast(t('saved'));}); });
@@ -397,7 +423,7 @@ function renderAcceptedRoom(gameChanged) {
     gameTransition=null;
     app.classList.remove('is-switching-game');
     app.removeAttribute('aria-busy');
-    renderRoom();
+    if (room) renderRoom();
   });
 }
 function gameSwitcher() {
