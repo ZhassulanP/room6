@@ -71,4 +71,30 @@ try {
   assert.equal(returned.room.me, host.room.me); assert.equal(returned.room.hostId, host.room.me);
   assert.equal(returned.room.players[0].score, Number([explainerId, guesserId].includes(host.room.me)));
   console.log('Cloudflare artifact verified: password-free rooms, D1 queries, roles, mines, answers, scores and nickname recovery.');
+
+  const chessModule = await worker.fetch(new Request('https://word-mine.test/bughouse.js'), { DB });
+  assert.equal(chessModule.status, 200);
+  assert.match(await chessModule.text(), /export function renderBughouse/);
+  const pieceArt = await worker.fetch(new Request('https://word-mine.test/chess-pieces.svg'), { DB });
+  assert.equal(pieceArt.status, 200);
+  assert.equal(pieceArt.headers.get('content-type'), 'image/svg+xml');
+  assert.equal([...((await pieceArt.text()).matchAll(/<symbol id="[wb][pnbrqk]"/g))].length, 12);
+  const chessHost = await request('/api/rooms', { name: 'Chess host', settings: { game: 'bughouse' } }, null, 201);
+  assert.match(chessHost.room.code, /^[0-9]{6}$/);
+  const chessBase = '/api/rooms/' + chessHost.room.code;
+  const partner = await request(chessBase + '/join', { name: 'Chess partner' });
+  const first = await request(chessBase + '/join', { name: 'First opponent' });
+  const second = await request(chessBase + '/join', { name: 'Second opponent' });
+  const match = await request(chessBase + '/action', { action: 'start' }, chessHost.token);
+  const play = (client, action, data) => request(chessBase + '/action', { action: 'bughouse-' + action, data: { ...data, roundId: match.room.round.id } }, client.token);
+  await Promise.all([chessHost, second].map(client => play(client, 'move', { from: 'e2', to: 'e4', revision: 0 })));
+  await Promise.all([first, partner].map(client => play(client, 'move', { from: 'd7', to: 'd5', revision: 1 })));
+  await Promise.all([chessHost, second].map(client => play(client, 'move', { from: 'e4', to: 'd5', revision: 2 })));
+  const captures = await request(chessBase, null, partner.token);
+  assert.deepEqual(captures.room.round.boards.map(board => board.reserve.b), [{ p: 1 }, { p: 1 }]);
+  await play(partner, 'drop', { piece: 'p', to: 'e6', revision: 3 });
+  const chessState = await request(chessBase, null, chessHost.token);
+  assert.equal(chessState.room.round.boards[1].pieces.e6, 'bp');
+  assert.deepEqual(chessState.room.round.boards[1].reserve.b, {});
+  console.log('Cloudflare artifact verified: Bughouse room, concurrent captures and piece drops.');
 } finally { db.close(); mock.restoreAll(); }

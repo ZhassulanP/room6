@@ -1,14 +1,14 @@
 import { readFile, writeFile, mkdir, rm, cp } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 const root = new URL('../', import.meta.url);
 const read = path => readFile(new URL(path, root), 'utf8');
 await rm(new URL('dist/', root), { recursive: true, force: true });
 await mkdir(new URL('dist/server/', root), { recursive: true });
 await mkdir(new URL('dist/.openai/', root), { recursive: true });
-const modules = await Promise.all(['src/words.js', 'src/game.js', 'src/api.js'].map(read));
-const core = modules.map(source => source.replace(/^import .*;\n/gm, '').replace(/^export /gm, '')).join('\n');
 const assets = {};
-for (const [path, name, type] of [['/', 'index.html', 'text/html; charset=utf-8'], ['/app.js', 'app.js', 'text/javascript; charset=utf-8'], ['/theme.js', 'theme.js', 'text/javascript; charset=utf-8'], ['/i18n.js', 'i18n.js', 'text/javascript; charset=utf-8'], ['/scoreboard.js', 'scoreboard.js', 'text/javascript; charset=utf-8'], ['/style.css', 'style.css', 'text/css; charset=utf-8'], ['/favicon.svg', 'favicon.svg', 'image/svg+xml']]) assets[path] = { body: await read('public/' + name), type };
-const worker = `${core}\nconst assets = ${JSON.stringify(assets)};\n
+for (const [path, name, type] of [['/', 'index.html', 'text/html; charset=utf-8'], ['/app.js', 'app.js', 'text/javascript; charset=utf-8'], ['/bughouse.js', 'bughouse.js', 'text/javascript; charset=utf-8'], ['/chess-pieces.svg', 'chess-pieces.svg', 'image/svg+xml'], ['/theme.js', 'theme.js', 'text/javascript; charset=utf-8'], ['/i18n.js', 'i18n.js', 'text/javascript; charset=utf-8'], ['/scoreboard.js', 'scoreboard.js', 'text/javascript; charset=utf-8'], ['/style.css', 'style.css', 'text/css; charset=utf-8'], ['/favicon.svg', 'favicon.svg', 'image/svg+xml']]) assets[path] = { body: await read('public/' + name), type };
+const source = `import { api } from './src/api.js';\nconst assets = ${JSON.stringify(assets)};\n
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -26,6 +26,12 @@ export default {
     return new Response(asset.body,{headers:{'Content-Type':asset.type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'self'"}});
   }
 };`;
+const { outputFiles } = await build({
+  stdin: { contents: source, resolveDir: fileURLToPath(root) },
+  bundle: true, format: 'esm', write: false,
+  banner: { js: `/*\n${await read('node_modules/chess.js/LICENSE')}*/` }
+});
+const worker = outputFiles[0].text;
 await writeFile(new URL('dist/server/index.js', root), worker);
 await cp(new URL('.openai/hosting.json', root), new URL('dist/.openai/hosting.json', root));
 await cp(new URL('drizzle/', root), new URL('dist/.openai/drizzle/', root), { recursive: true });

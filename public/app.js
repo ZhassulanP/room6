@@ -1,5 +1,6 @@
 import { t, getLanguage, setLanguage, languages, translateError } from './i18n.js';
 import { renderScoreboard } from './scoreboard.js';
+import { bindBughouse, bughouseArt, bughouseLobby, renderBughouse } from './bughouse.js';
 
 const $ = selector => document.querySelector(selector);
 const app = $('#app');
@@ -8,6 +9,11 @@ const tr = (key, values) => esc(t(key, values));
 let room = null, session = null;
 let tab = new URLSearchParams(location.search).has('room') ? 'join' : 'home';
 let selectedGame = 'wordmine';
+const gameCards = {
+  spy: { create: 'createSpy', players: 'playersThree', description: 'spyShort' },
+  wordmine: { create: 'createWordmine', players: 'playersThree', description: 'wordmineShort' },
+  bughouse: { create: 'createBughouse', players: 'playersFour', description: 'bughouseShort' }
+};
 let busy = false, polling = false, connected = true, offset = 0, signature = '', toastTimeout;
 const drafts = new Map(), entryDrafts = new Map();
 const revealedRoles = new Set();
@@ -40,7 +46,8 @@ function localizeShell() {
   theme.dataset.lightTitle = t('lightTheme');
   theme.dataset.darkTitle = t('enableDark');
   window.dispatchEvent(new Event('wordmine:theme-labels'));
-  $('#rule-list').innerHTML = (room?.settings.game || selectedGame) === 'spy' ? `<li><strong>${tr('spy')}</strong><p>${tr('spyRules')}</p></li>` : ['Roles','Mines','Explain','Claim','Score'].map(key => `<li><strong>${tr('rules'+key)}</strong><p>${tr('rules'+key+'Text')}</p></li>`).join('');
+  const game = room?.settings.game || selectedGame;
+  $('#rule-list').innerHTML = game === 'wordmine' ? ['Roles','Mines','Explain','Claim','Score'].map(key => `<li><strong>${tr('rules'+key)}</strong><p>${tr('rules'+key+'Text')}</p></li>`).join('') : `<li><strong>${tr(game)}</strong><p>${tr(game + 'Rules')}</p></li>`;
 }
 function captureEntry() {
   app.querySelectorAll('#entry-form input, #home-code').forEach(input => entryDrafts.set(input.id === 'home-code' ? 'code' : input.id, input.type === 'checkbox' ? input.checked : input.value));
@@ -70,6 +77,7 @@ $('.brand').addEventListener('click', event => {
 
 const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7"/></svg>';
 function gameArt(game) {
+  if(game==='bughouse') return bughouseArt();
   if(game==='spy') return `<div class="poster-art dossier-art" aria-hidden="true"><div class="dossier dossier-innocent"><b>●</b></div><div class="dossier dossier-spy"><b>?</b></div><div class="dossier dossier-white"><b>—</b></div></div>`;
   return `<div class="poster-art letter-art" aria-hidden="true"><div class="tile-row">${'WORD'.split('').map((letter,i)=>`<span class="letter-tile" style="--tile:${i}">${letter}</span>`).join('')}</div><div class="tile-row">${'MINE'.split('').map((letter,i)=>`<span class="letter-tile" style="--tile:${i+4}">${letter}</span>`).join('')}</div><span class="tile-burst">✳</span></div>`;
 }
@@ -94,7 +102,7 @@ function home() {
   app.innerHTML = `<section class="home-intro"><h1>${tr('chooseGame')}</h1></section>
     <section class="game-shelf" aria-label="${tr('chooseGame')}"><div class="home-options">
     <article class="home-option join-option" style="--deal:0"><h2>${tr('joinHeading')}</h2><form id="home-join-form" class="home-join-form"><label for="home-code">${tr('code')}</label><input id="home-code" name="code" aria-label="${tr('code')}" placeholder="000000" minlength="4" maxlength="6" pattern="([0-9]{6}|[0-9]{4}|[A-Za-z2-9]{6})" inputmode="numeric" autocomplete="off" spellcheck="false" required><button class="shelf-button" type="submit">${tr('join')}${arrow}</button></form></article>
-    ${['spy','wordmine'].map((game,index)=>`<article class="home-option ${game}-option" style="--deal:${index+1}"><div class="option-meta"><span>${tr('playersThree')}</span></div><h2>${tr(game)}</h2>${gameArt(game)}<p class="option-description">${tr(game==='spy'?'spyShort':'wordmineShort')}</p><button class="shelf-button" type="button" data-create-game="${game}">${tr(game==='spy'?'createSpy':'createWordmine')}${arrow}</button></article>`).join('')}
+    ${Object.entries(gameCards).map(([game,card],index)=>`<article class="home-option ${game}-option" style="--deal:${index+1}"><div class="option-meta"><span>${tr(card.players)}</span></div><h2>${tr(game)}</h2>${gameArt(game)}<p class="option-description">${tr(card.description)}</p><button class="shelf-button" type="button" data-create-game="${game}">${tr(card.create)}${arrow}</button></article>`).join('')}
     </div></section>`;
   $('#home-code').value = entryDrafts.get('code') || entryDrafts.get('home-code') || '';
   $('#home-join-form').onsubmit = e => { e.preventDefault(); entryDrafts.set('code', $('#home-code').value.trim().toUpperCase()); openEntry('join'); };
@@ -110,10 +118,10 @@ function entry() {
   const invite = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
   const legacyInvite = /[A-Z]/.test(invite || entryDrafts.get('code') || '');
   const joining = tab === 'join';
-  app.innerHTML = `<section class="entry-stage"><button class="back-link" id="back-games">← ${tr('backGames')}</button><div class="entry-layout"><div class="entry-intro"><h1>${tr(joining?'joinHeading':selectedGame==='spy'?'spy':'wordmine')}</h1>${joining?'':`<div class="entry-art ${selectedGame}-option">${gameArt(selectedGame)}</div><button class="text-button" id="entry-rules">${tr('roomRules')} ↗</button>`}</div>
+  app.innerHTML = `<section class="entry-stage"><button class="back-link" id="back-games">← ${tr('backGames')}</button><div class="entry-layout"><div class="entry-intro"><h1>${tr(joining?'joinHeading':selectedGame)}</h1>${joining?'':`<div class="entry-art ${selectedGame}-option">${gameArt(selectedGame)}</div><button class="text-button" id="entry-rules">${tr('roomRules')} ↗</button>`}</div>
     <form id="entry-form" class="entry-form"><div class="form-heading"><span class="mono">${tr(joining?'join':'create')}</span><span aria-hidden="true">↘</span></div><div class="field"><label for="name">${tr('name')}</label><input name="name" id="name" placeholder="${tr('namePlaceholder')}" maxlength="24" autocomplete="nickname" required></div>
-    ${joining?`<div class="field"><label for="code">${tr('code')}</label><input id="code" name="code" placeholder="000000" value="${esc(invite)}" minlength="4" maxlength="6" pattern="([0-9]{6}|[0-9]{4}|[A-Za-z2-9]{6})" inputmode="${legacyInvite?'text':'numeric'}" autocomplete="off" spellcheck="false" required></div>`:`<div class="field"><label for="capacity">${tr('capacity')} <span class="muted">(${tr('unlimited')})</span></label><input id="capacity" name="capacity" type="number" min="3" max="1000000" step="1" placeholder="${tr('playersThree')}"><span class="field-help">${tr('capacityHelp')}</span></div>`}
-    ${!joining && selectedGame==='spy'?roleFields('entry',{spyCount:1,mrWhite:false}):''}<p class="error" id="entry-error" role="alert"></p><button class="primary full" type="submit" ${busy?'disabled':''}>${tr(joining?'enter':selectedGame==='spy'?'createSpy':'createWordmine')}${arrow}</button>${joining?`<p class="form-note">${tr('recovery')}</p>`:`<p class="form-note">${tr('noDownloads')}</p>`}</form></div></section>`;
+    ${joining?`<div class="field"><label for="code">${tr('code')}</label><input id="code" name="code" placeholder="000000" value="${esc(invite)}" minlength="4" maxlength="6" pattern="([0-9]{6}|[0-9]{4}|[A-Za-z2-9]{6})" inputmode="${legacyInvite?'text':'numeric'}" autocomplete="off" spellcheck="false" required></div>`:selectedGame==='bughouse'?`<p class="form-note chess-entry-note">${tr('chessWaiting')}</p>`:`<div class="field"><label for="capacity">${tr('capacity')} <span class="muted">(${tr('unlimited')})</span></label><input id="capacity" name="capacity" type="number" min="3" max="1000000" step="1" placeholder="${tr('playersThree')}"><span class="field-help">${tr('capacityHelp')}</span></div>`}
+    ${!joining && selectedGame==='spy'?roleFields('entry',{spyCount:1,mrWhite:false}):''}<p class="error" id="entry-error" role="alert"></p><button class="primary full" type="submit" ${busy?'disabled':''}>${tr(joining?'enter':gameCards[selectedGame].create)}${arrow}</button>${joining?`<p class="form-note">${tr('recovery')}</p>`:`<p class="form-note">${tr('noDownloads')}</p>`}</form></div></section>`;
   $('#back-games').onclick = () => { captureEntry(); tab = 'home'; history.replaceState(null,'','/'); entry(); $('#home-code').focus(); };
   $('#entry-rules')?.addEventListener('click', () => { localizeShell(); $('#rules').showModal(); });
   try { $('#name').value = readStoredValue(localStorage, 'word-mine-name', 'acm-name') || ''; } catch {}
@@ -143,6 +151,8 @@ async function request(path,data) {
 }
 function accept(next) {
   if(room && next.serverNow<room.serverNow) return;
+  if (next.settings.game === 'bughouse' && next.round && room?.round?.id === next.round.id &&
+    ((room.phase === 'finished' && next.phase === 'chess') || next.round.boards.some((board, index) => board.revision < room.round.boards[index].revision))) return;
   const gameChanged = Boolean(room && (room.settings.game || 'wordmine') !== (next.settings.game || 'wordmine'));
   if(gameChanged) drafts.clear();
   if(room && (room.phase!==next.phase || room.turn!==next.turn || room.round?.id!==next.round?.id)) drafts.clear();
@@ -158,8 +168,9 @@ const playerName=id=>room.players.find(p=>p.id===id)?.name || room.round?.names?
 const me=()=>room.players.find(p=>p.id===room.me);
 function roster() {
   return room.players.map(p=>{
-    const status=room.settings.game==='spy' && !['lobby','paused','finished'].includes(room.phase) ? (room.round?.eliminated.includes(p.id)?'spyEliminated':!room.round?.participantIds.includes(p.id)?'spectator':'inRoom') : room.phase==='lobby'?(p.ready?'readyStatus':'inRoom'):room.phase==='paused'?'waitingPlayers':room.phase==='finished'?'gameOver':p.id===room.round?.explainerId?'explaining':p.id===room.round?.guesserId?'guessing':'miner';
-    return `<div class="player"><div class="avatar">${esc(p.name.slice(0,2).toUpperCase())}</div><div class="player-info"><div class="player-name">${esc(p.name)}${p.id===room.me?` <span class="muted small">(${tr('you')})</span>`:''}</div><div class="player-status">${tr(status)}${p.id===room.hostId?` · ${tr('host')}`:''}</div></div>${room.phase!=='lobby'?`<span class="score" data-score-id="${p.id}" data-score="${p.score}">${p.score}</span>`:''}${isHost()&&p.id!==room.me?`<button class="kick" data-kick="${p.id}" aria-label="${tr('removePlayer',{name:p.name})}">✕</button>`:''}</div>`;
+    const chess = room.settings.game === 'bughouse';
+    const status=room.settings.game==='spy' && !['lobby','paused','finished'].includes(room.phase) ? (room.round?.eliminated.includes(p.id)?'spyEliminated':!room.round?.participantIds.includes(p.id)?'spectator':'inRoom') : room.phase==='lobby'?(p.ready?'readyStatus':'inRoom'):room.phase==='paused'?'waitingPlayers':room.phase==='finished'?'gameOver':chess?'inRoom':p.id===room.round?.explainerId?'explaining':p.id===room.round?.guesserId?'guessing':'miner';
+    return `<div class="player"><div class="avatar">${esc(p.name.slice(0,2).toUpperCase())}</div><div class="player-info"><div class="player-name">${esc(p.name)}${p.id===room.me?` <span class="muted small">(${tr('you')})</span>`:''}</div><div class="player-status">${tr(status)}${p.id===room.hostId?` · ${tr('host')}`:''}</div></div>${room.phase!=='lobby'&&!chess?`<span class="score" data-score-id="${p.id}" data-score="${p.score}">${p.score}</span>`:''}${isHost()&&p.id!==room.me?`<button class="kick" data-kick="${p.id}" aria-label="${tr('removePlayer',{name:p.name})}">✕</button>`:''}</div>`;
   }).join('');
 }
 function renderRoom() {
@@ -174,13 +185,17 @@ function renderRoom() {
   const oldDetails=$('#advanced')?.open;
   const focused=document.activeElement?.id;
   const selection=document.activeElement && ['text','search'].includes(document.activeElement.type)?document.activeElement.selectionStart:null;
-  app.innerHTML=`<div class="room-top"><h1>${room.phase==='lobby'?tr('lobby'):room.phase==='finished'?tr('gameOver'):room.phase==='paused'?tr('waitingPlayers'):tr('turn',{current:Math.min(room.turn+1,room.totalTurns),total:room.totalTurns})}</h1><div class="room-actions"><button class="secondary" id="invite-button">${tr('invite')} ↗</button><span class="room-code" aria-label="${tr('code')}">${esc(room.code)}</span></div></div>
-  ${room.phase==='lobby'?gameSwitcher():''}<div class="connection" id="connection" ${connected?'hidden':''}>${tr('reconnecting')}</div><div class="room-layout"><aside class="panel sidebar"><div class="roster-title"><h2>${tr('players')}</h2><span class="count-pill">${room.players.length} / ${room.settings.capacity??'∞'}</span></div><div class="roster">${roster()}</div><button class="text-button" id="leave-button">${tr('leave')} ↗</button></aside><div class="room-main ${enteringScene?'scene-enter':''}">${room.phase==='lobby'?lobby():room.phase==='finished'?finished():room.phase==='paused'?paused():game()}</div></div>`;
+  const chess = room.settings.game === 'bughouse';
+  const inLobby = room.phase === 'lobby';
+  const content = chess ? (inLobby ? bughouseLobby(room) : renderBughouse(room)) : (inLobby ? lobby() : room.phase === 'finished' ? finished() : room.phase === 'paused' ? paused() : game());
+  const heading = inLobby ? tr('lobby') : chess ? tr('bughouse') : room.phase === 'finished' ? tr('gameOver') : room.phase === 'paused' ? tr('waitingPlayers') : tr('turn', { current: Math.min(room.turn + 1, room.totalTurns), total: room.totalTurns });
+  app.innerHTML=`<div class="room-top"><h1>${heading}</h1><div class="room-actions"><button class="secondary" id="invite-button">${tr('invite')} ↗</button><span class="room-code" aria-label="${tr('code')}">${esc(room.code)}</span></div></div>
+  ${inLobby&&!chess?gameSwitcher():''}<div class="connection" id="connection" ${connected?'hidden':''}>${tr('reconnecting')}</div><div class="room-layout"><aside class="panel sidebar"><div class="roster-title"><h2>${tr('players')}</h2><span class="count-pill">${room.players.length} / ${room.settings.capacity??'∞'}</span></div><div class="roster">${roster()}</div><button class="text-button" id="leave-button">${tr('leave')} ↗</button></aside><div class="room-main ${enteringScene?'scene-enter':''}">${content}</div></div>`;
   if(previousSwitch && $('#game-switch')) $('#game-switch').replaceWith(previousSwitch);
   bindGameSwitch(previousThumbTransform);
   $('#invite-button').onclick=copyInvite;
   $('#leave-button').onclick=confirmLeave;
-  document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>confirmAction(t('removeTitle'),t('removeMessage',{name:playerName(b.dataset.kick)}),t('remove'),()=>mutate('kick',{playerId:b.dataset.kick})));
+  document.querySelectorAll('[data-kick]').forEach(b=>b.onclick=()=>confirmAction(t('removeTitle'),t(room.phase === 'chess' ? 'chessKickHelp' : 'removeMessage',{name:playerName(b.dataset.kick)}),t('remove'),()=>mutate('kick',{playerId:b.dataset.kick})));
   document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>mutate(b.dataset.action));
   $('#lobby-button')?.addEventListener('click',()=>confirmAction(t('lobbyTitle'),t('lobbyMessage'),t('toLobby'),()=>mutate('lobby')));
   $('#skip-button')?.addEventListener('click',()=>confirmAction(t('skipTitle'),t('skipMessage'),t('skip'),()=>mutate('skip')));
@@ -189,7 +204,8 @@ function renderRoom() {
   $('#reject-claim')?.addEventListener('click',()=>mutate('resolve',{accept:false}));
   $('#mine-form')?.addEventListener('submit',e=>{e.preventDefault();mutate('mine',{word:$('#mine-word').value}).then(success=>{if(success)drafts.delete('mine-word');});});
   $('#guess-form')?.addEventListener('submit',e=>{e.preventDefault();mutate('guess',{word:$('#guess-word').value}).then(success=>{if(success){drafts.delete('guess-word');if($('#guess-word'))$('#guess-word').value='';}});});
-  bindSpy();
+  if (chess) bindBughouse(app, room, mutate, renderRoom, confirmAction);
+  else bindSpy();
   $('#settings-form')?.addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));d.useDefaultWords=$('#default-words').checked;d.mrWhite=$('#set-white')?.checked||false;mutate('settings',d).then(success=>{if(success){drafts.clear();renderRoom();toast(t('saved'));}});});
   for(const [id,value] of drafts) { const input=document.getElementById(id);if(input){if(input.type==='checkbox')input.checked=value;else input.value=value;} }
   document.querySelectorAll('.room-main input,.room-main textarea,.room-main select').forEach(input=>input.addEventListener('input',()=>drafts.set(input.id,input.type==='checkbox'?input.checked:input.value)));
@@ -308,7 +324,8 @@ async function mutate(action,data={}) {
 function confirmLeave() {
   if (busy) return;
   const leavingSession = session;
-  confirmAction(t('leaveTitle'), t(room.phase === 'lobby' ? 'leaveLobby' : 'leaveGame'), t('leave'), () => {
+  const message = room.phase === 'chess' ? 'chessLeaveHelp' : room.phase === 'lobby' || room.settings.game === 'bughouse' ? 'leaveLobby' : 'leaveGame';
+  confirmAction(t('leaveTitle'), t(message), t('leave'), () => {
     if (session === leavingSession) mutate('leave');
   });
 }

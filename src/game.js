@@ -1,4 +1,5 @@
 import { DICTIONARIES, SPY_WORDS } from './words.js';
+import { bughouseSeats, bughouseView, playBughouse, resignBughouse, startBughouse } from './bughouse.js';
 
 const WORD_MINE_SCHEDULE_VERSION = 1;
 
@@ -14,6 +15,7 @@ const integer = (value, min, max, label) => {
 };
 export function settings(input = {}, count = 0) {
   const game = input.game ?? 'wordmine';
+  if (game === 'bughouse') return { game, capacity: 4 };
   requireThat(['wordmine', 'spy'].includes(game), 'Неизвестная игра.');
   const wordLanguage = input.wordLanguage ?? 'ru';
   requireThat(Object.hasOwn(DICTIONARIES, wordLanguage), 'Неизвестный язык словаря.');
@@ -48,6 +50,7 @@ export function joinRoom(room, player, now = Date.now()) {
     room.updated = now;
     return existing;
   }
+  if (room.settings.game === 'bughouse') requireThat(room.players.length < 4, 'В шахматной комнате уже четыре игрока.');
   requireThat(!room.settings.capacity || room.players.length < room.settings.capacity, 'Комната заполнена. Попросите ведущего увеличить размер.');
   tick(room, now);
   const saved = room.departed.find(entry => normalize(entry.player.name) === normalize(player.name));
@@ -56,8 +59,8 @@ export function joinRoom(room, player, now = Date.now()) {
   room.progress[joined.id] = saved ? { ...saved.progress } : { explained: 0, guessed: 0 };
   room.departed = room.departed.filter(entry => entry.player.id !== joined.id);
   if (!room.hostId) room.hostId = joined.id;
-  if (room.round) room.round.names[joined.id] = joined.name;
-  if (!['lobby', 'finished'].includes(room.phase)) {
+  if (room.round && room.settings.game !== 'bughouse') room.round.names[joined.id] = joined.name;
+  if (room.settings.game !== 'bughouse' && !['lobby', 'finished'].includes(room.phase)) {
     if (room.settings.game !== 'spy') rebuildSchedule(room);
     if (room.phase === 'paused' && canStartSpy(room)) startTurn(room, now);
   }
@@ -204,6 +207,7 @@ function finish(room, outcome, winnerIds = [], mine = null) {
   room.progress[room.round.guesserId].guessed++;
 }
 export function tick(room, now) {
+  if (room.settings.game === 'bughouse') return false;
   let changed = ensureState(room);
   // Apply the current timing rules to rooms saved before this update as well.
   if (room.settings.duration !== null || room.settings.miningDuration !== 60) {
@@ -220,6 +224,28 @@ export function act(room, token, action, data = {}, now = Date.now()) {
   const host = p.id === room.hostId;
   const onlyHost = () => requireThat(host, 'Это действие доступно ведущему.', 403);
   tick(room, now);
+  if (room.settings.game === 'bughouse' && !['lobby', 'ready', 'leave', 'kick'].includes(action)) {
+    if (action === 'start') {
+      onlyHost();
+      requireThat(room.phase === 'lobby', 'Игра уже началась.');
+      requireThat(room.players.length === 4, 'Для шахмат нужны ровно четыре игрока.');
+      startBughouse(room);
+    } else if (action === 'bughouse-partner' || action === 'bughouse-swap-colors') {
+      onlyHost();
+      requireThat(room.phase === 'lobby', 'Настройки доступны в лобби.');
+      if (action === 'bughouse-partner') {
+        requireThat(room.players.some(player => player.id === data?.playerId && player.id !== p.id), 'Игрок не найден.');
+        room.settings.partnerId = data.playerId;
+      } else {
+        room.settings.colorsSwapped = !room.settings.colorsSwapped;
+      }
+      room.players.forEach(player => { player.ready = false; });
+    } else if (['bughouse-move', 'bughouse-drop', 'bughouse-resign', 'bughouse-draw'].includes(action)) {
+      playBughouse(room, p.id, action, data, requireThat);
+    } else throw new GameError('Неизвестное действие.');
+    room.updated = now;
+    return p;
+  }
   if (room.settings.game === 'spy' && ((typeof action === 'string' && action.startsWith('spy-')) || ['skip', 'next'].includes(action))) {
     actSpy(room, p, action, data, onlyHost); room.updated = now; return p;
   }
@@ -230,6 +256,7 @@ export function act(room, token, action, data = {}, now = Date.now()) {
     requireThat(room.phase === 'lobby', 'Игра уже началась.'); p.ready = !p.ready;
   } else if (action === 'settings') {
     onlyHost(); requireThat(room.phase === 'lobby', 'Настройки доступны в лобби.');
+    requireThat(data?.game !== 'bughouse', 'Неизвестная игра.');
     const next = settings(data, room.players.length);
     room.gameSettings ||= {};
     room.gameSettings[room.settings.game || 'wordmine'] = structuredClone(room.settings);
@@ -316,7 +343,9 @@ export function act(room, token, action, data = {}, now = Date.now()) {
     room.players = room.players.filter(p => p.id !== id);
     if (room.hostId === id) room.hostId = room.players[0]?.id ?? null;
     delete room.progress[id];
-    if (room.settings.game === 'spy' && !['lobby', 'finished', 'result'].includes(room.phase)) {
+    if (room.settings.game === 'bughouse') {
+      if (room.phase === 'chess') resignBughouse(room, id);
+    } else if (room.settings.game === 'spy' && !['lobby', 'finished', 'result'].includes(room.phase)) {
       // A departure cancels the exposed round without awarding points.
       startSpyRound(room);
     } else if (!['lobby', 'finished'].includes(room.phase)) {
@@ -348,6 +377,15 @@ function resetLobby(room) {
 export function view(room, token, now = Date.now()) {
   const p = room.players.find(p => p.token === token);
   requireThat(p, 'Вы вышли из комнаты. Войдите снова.', 401);
+  if (room.settings.game === 'bughouse') {
+    return {
+      code: room.code, me: p.id, hostId: room.hostId, phase: room.phase,
+      players: room.players.map(({ id, name, ready, score }) => ({ id, name, ready, score })),
+      settings: { game: 'bughouse', capacity: 4 }, serverNow: now,
+      round: room.round ? bughouseView(room, p.id) : null,
+      ...(room.phase === 'lobby' && { seats: bughouseSeats(room), colorsSwapped: room.settings.colorsSwapped === true })
+    };
+  }
   const r = room.round;
   const spy = room.settings.game === 'spy';
   const role = spy && r ? (!r.participantIds.includes(p.id) ? 'spectator' : (r.spyIds || [r.spyId]).includes(p.id) ? 'spy' : p.id === r.whiteId ? 'mrWhite' : 'innocent') : !r ? null : p.id === r.explainerId ? 'explainer' : p.id === r.guesserId ? 'guesser' : 'miner';

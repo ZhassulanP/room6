@@ -617,6 +617,56 @@ messages.kk.spyShort='Сөзді білмейтіндерді тап.';
 messages.ru.wordmineShort='Объясняй слова, не задевая мины.';
 messages.en.wordmineShort='Explain words. Avoid the mines.';
 messages.kk.wordmineShort='Сөзді түсіндір. Миналарға түспе.';
+const bughouseMessages = {
+  bughouse: ['Шведские шахматы', 'Bughouse Chess', 'Швед шахматы'],
+  createBughouse: ['Создать шахматную комнату', 'Create chess room', 'Шахмат бөлмесін ашу'],
+  playersFour: ['4 игрока', '4 players', '4 ойыншы'],
+  bughouseShort: ['Две доски, две команды. Передавай взятые фигуры напарнику.', 'Two boards, two teams. Send captured pieces to your partner.', 'Екі тақта, екі команда. Алған фигураларыңды серіктесіңе бер.'],
+  bughouseRules: ['Играют четверо на двух досках без часов. Напарники играют разными цветами. Взятая фигура попадает в запас напарника: в свой ход он может поставить её на свободную клетку. Пешки нельзя ставить на первую или последнюю горизонталь. При взятии превращённая фигура снова становится пешкой. Мат с учётом имеющегося запаса или сдача на любой доске решают исход всей партии. Пат или согласие всех игроков дают ничью.', 'Four players use two boards with no clocks. Partners play opposite colors. Captures go to your partner’s reserve, and they can spend a turn dropping one on an empty square. Pawns cannot be dropped on either back rank. Captured promoted pieces return to the reserve as pawns. Checkmate, based on the pieces already in reserve, or a resignation on either board decides the match. Stalemate or agreement by all four players ends it in a draw.', 'Төрт ойыншы екі тақтада сағатсыз ойнайды. Серіктестер қарама-қарсы түспен ойнайды. Алған фигураң серіктесіңнің қорына түседі. Ол өз жүрісінде қордағы фигураны бос ұяшыққа қоя алады. Пешканы бірінші не соңғы қатарға қоюға болмайды. Алынған түрленген фигура қорға пешка болып түседі. Қордағы фигураларды ескергендегі мат немесе бір тақтада берілу бүкіл матчты аяқтайды. Пат немесе төрт ойыншының келісімі тең ойынмен аяқталады.'],
+  chessWaiting: ['Ведущий сможет начать партию, когда соберутся четыре игрока.', 'The host can start once all four players have joined.', 'Төрт ойыншы жиналғанда жүргізуші матчты бастай алады.'],
+  chessTeam: ['Команда {team}', 'Team {team}', '{team}-команда'],
+  chessChoosePartner: ['Кто будет твоим напарником?', 'Choose your partner', 'Серіктесіңді таңда'],
+  chessSwapColors: ['Поменять цвета', 'Swap colors', 'Түстерді ауыстыру'],
+  chessEmptySeat: ['Свободное место', 'Open seat', 'Бос орын'],
+  chessWhite: ['Белые', 'White', 'Ақтар'],
+  chessBlack: ['Чёрные', 'Black', 'Қаралар'],
+  chessYourBoard: ['Твоя доска', 'Your board', 'Өз тақтаң'],
+  chessPartnerBoard: ['Доска напарника', 'Partner’s board', 'Серіктесіңнің тақтасы'],
+  chessBoardA: ['Доска А', 'Board A', 'А тақтасы'],
+  chessBoardB: ['Доска Б', 'Board B', 'Б тақтасы'],
+  chessReserve: ['Запас фигур', 'Piece reserve', 'Фигуралар қоры'],
+  chessEmptyReserve: ['Запас пуст', 'Empty reserve', 'Қор бос'],
+  chessReservePiece: ['{piece} в запасе — {count}', '{piece} in reserve, {count}', 'Қорда {count} {piece}'],
+  chessPiece: ['{piece}, {color}', '{color} {piece}', '{color}, {piece}'],
+  chessEmptySquare: ['пусто', 'empty', 'бос'],
+  pawn: ['пешка', 'pawn', 'пешка'],
+  knight: ['конь', 'knight', 'ат'],
+  bishop: ['слон', 'bishop', 'піл'],
+  rook: ['ладья', 'rook', 'тура'],
+  queen: ['ферзь', 'queen', 'уәзір'],
+  king: ['король', 'king', 'патша'],
+  chessYourTurn: ['Твой ход', 'Your turn', 'Сенің жүрісің'],
+  chessToMove: ['Ходит {name}', '{name} to move', '{name} жүреді'],
+  chessCheck: ['Шах', 'Check', 'Шах'],
+  chessWinner: ['Победа команды {team}', 'Team {team} wins', '{team}-команда жеңді'],
+  chessDrawn: ['Ничья', 'Draw', 'Тең ойын'],
+  chessResult_checkmate: ['Партия завершилась матом.', 'The match ended in checkmate.', 'Мат қойылып, матч аяқталды.'],
+  chessResult_stalemate: ['Партия завершилась патом.', 'The match ended in stalemate.', 'Пат болып, матч аяқталды.'],
+  chessResult_resignation: ['Один из игроков сдался.', 'A player resigned.', 'Ойыншылардың бірі берілді.'],
+  chessResult_agreement: ['Все игроки согласились на ничью.', 'All four players agreed to a draw.', 'Төрт ойыншы да тең ойынға келісті.'],
+  chessPromote: ['Во что превратить пешку?', 'Promote pawn to', 'Пешканы қай фигураға айналдырасың?'],
+  chessResign: ['Сдаться', 'Resign', 'Берілу'],
+  chessResignTitle: ['Сдаться?', 'Resign this match?', 'Осы матчта берілесің бе?'],
+  chessResignHelp: ['Твоя команда проиграет на обеих досках.', 'The other team will win the match.', 'Қарсы команда матчта жеңеді.'],
+  chessLeaveHelp: ['Выход из активной партии считается сдачей. Ты сможешь вернуться по тому же коду и нику.', 'Leaving now counts as resignation. You can return using the same code and nickname.', 'Қазір шықсаң, берілген болып саналасың. Сол код пен лақап атпен қайта кіре аласың.'],
+  chessKickHelp: ['Если исключить игрока {name}, его команда проиграет.', 'Removing {name} will forfeit the match for their team.', '{name} ойыннан шығарылса, оның командасы жеңіледі.'],
+  chessOfferDraw: ['Предложить ничью', 'Agree to draw', 'Тең ойынға келісу'],
+  chessWithdrawDraw: ['Отозвать согласие', 'Withdraw draw vote', 'Келісімді қайтару'],
+  chessDrawVotes: ['За ничью: {count} из 4', 'Draw votes: {count} of 4', 'Тең ойынға дауыс: {count}/4']
+};
+for (const [key, values] of Object.entries(bughouseMessages)) {
+  ['ru', 'en', 'kk'].forEach((lang, index) => { messages[lang][key] = values[index]; });
+}
 let language = 'ru';
 try { const saved = typeof window === 'undefined' ? null : localStorage.getItem('word-mine-language'); if (Object.hasOwn(languages, saved)) language = saved; } catch {}
 export const getLanguage = () => language;
@@ -634,6 +684,13 @@ export function t(key, values = {}) {
 
 // API messages remain stable for old clients; localize them at the display boundary.
 export const errorMessages = [
+  ['В шахматной комнате уже четыре игрока.', 'The chess room already has four players.', 'Шахмат бөлмесінде төрт ойыншы бар.'],
+  ['Для шахмат нужны ровно четыре игрока.', 'Bughouse requires exactly four players.', 'Швед шахматына дәл төрт ойыншы керек.'],
+  ['Эта партия уже завершилась или сменилась.', 'This match has ended or changed.', 'Бұл матч аяқталды немесе ауысты.'],
+  ['В этой партии вы наблюдатель.', 'You are watching this match.', 'Сен бұл матчты көріп отырсың.'],
+  ['Сейчас ход соперника.', 'It is your opponent’s turn.', 'Қазір қарсыласыңның жүрісі.'],
+  ['Недопустимый ход.', 'Illegal move.', 'Бұл жүріске рұқсат жоқ.'],
+  ['Сюда нельзя поставить эту фигуру.', 'You cannot drop that piece here.', 'Бұл фигураны мұнда қоя алмайсың.'],
   ["Добавьте хотя бы одного шпиона или Мистера Уайта.", "Add at least one spy or Mr. White.", "Кемінде бір тыңшыны немесе Мистер Уайтты қос."],
   ["Оставьте хотя бы одно место для мирного игрока.", "Leave at least one place for an innocent.", "Бейбіт ойыншыға кемінде бір орын қалдыр."],
   ["Недостаточно игроков для выбранных ролей.", "Not enough players for this role lineup.", "Бұл рөлдерге ойыншы саны жеткіліксіз."],

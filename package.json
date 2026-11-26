@@ -22,9 +22,11 @@
     "cloudflare:db:create": "wrangler d1 create word-mine-rooms --binding DB --update-config"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.2.0"
+    "@neondatabase/serverless": "^1.2.0",
+    "chess.js": "^1.4.0"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "wrangler": "^4.156.0"
   }
 }
