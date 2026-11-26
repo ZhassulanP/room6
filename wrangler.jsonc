@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "wordmine-game",
+  "name": "room6",
   "main": "dist/server/index.js",
   "compatibility_date": "2026-11-01",
   "workers_dev": true,

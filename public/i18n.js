@@ -2,7 +2,7 @@
 export const languages = { ru: 'Русский', en: 'English', kk: 'Қазақша' };
 export const messages = {
   ru: {
-    language: 'Язык интерфейса', home: 'Word Mine — главная', rules: 'Правила', close: 'Закрыть', loading: 'Загрузка…',
+    language: 'Язык интерфейса', home: 'Room6 — главная', rules: 'Правила', close: 'Закрыть', loading: 'Загрузка…',
     darkTheme: 'Тёмная тема', lightTheme: 'Включить светлую тему', enableDark: 'Включить тёмную тему',
     heroTitle: 'Объясняй слова.', heroAccent: 'Обходи ловушки.', heroDescription: 'От 3 игроков. Один объясняет, второй угадывает, остальные ставят слова-мины.',
     entryTabs: 'Вход в игру', create: 'Создать комнату', join: 'Присоединиться', name: 'Твой ник', namePlaceholder: 'Имя или ник',
@@ -35,7 +35,7 @@ export const messages = {
     rulesScore: 'Очки и роли', rulesScoreText: 'Угадали — объясняющий и угадывающий получают по 1 очку. Подрыв — по 1 очку авторам сработавшего слова. После хода видна таблица очков. За круг каждый объясняет и угадывает. Если осталось меньше трёх игроков, игра ждёт новых участников.'
   },
   en: {
-    language: 'Interface language', home: 'Word Mine — home', rules: 'Rules', close: 'Close', loading: 'Loading…',
+    language: 'Interface language', home: 'Room6 — home', rules: 'Rules', close: 'Close', loading: 'Loading…',
     darkTheme: 'Dark theme', lightTheme: 'Switch to light theme', enableDark: 'Switch to dark theme',
     heroTitle: 'Explain the word.', heroAccent: 'Dodge the traps.', heroDescription: '3 or more players. One explains, one guesses, everyone else plants word mines.',
     entryTabs: 'Enter the game', create: 'Create room', join: 'Join room', name: 'Your nickname', namePlaceholder: 'Name or nickname',
@@ -68,7 +68,7 @@ export const messages = {
     rulesScore: 'Scores and rotation', rulesScoreText: 'Correct guess: the explainer and guesser each get 1 point. Triggered mine: each author of that mine gets 1 point. Scores appear after each turn. Everyone explains and guesses once per cycle. Play pauses if fewer than 3 players remain.'
   },
   kk: {
-    language: 'Интерфейс тілі', home: 'Word Mine — басты бет', rules: 'Ережелер', close: 'Жабу', loading: 'Жүктелуде…',
+    language: 'Интерфейс тілі', home: 'Room6 — басты бет', rules: 'Ережелер', close: 'Жабу', loading: 'Жүктелуде…',
     darkTheme: 'Қараңғы тақырып', lightTheme: 'Жарық тақырыпқа ауысу', enableDark: 'Қараңғы тақырыпқа ауысу',
     heroTitle: 'Сөзді түсіндір.', heroAccent: 'Тұзаққа түспе.', heroDescription: 'Кемінде 3 ойыншы. Бірі түсіндіреді, екіншісі табады, қалғандары сөз-мина қояды.',
     entryTabs: 'Ойынға кіру', create: 'Бөлме ашу', join: 'Қосылу', name: 'Лақап атың', namePlaceholder: 'Атың немесе лақап атың',
@@ -435,9 +435,9 @@ const homeMessages = {
     "Өзіңді таныстыр. Қайта қосылсаң, бұрынғы атыңды қолдан."
   ],
   "homeAria": [
-    "Word Mine и Шпион — главная",
-    "Word Mine & Spy — home",
-    "Word Mine және Тыңшы — басты бет"
+    "Room6 — главная",
+    "Room6 — home",
+    "Room6 — басты бет"
   ],
   "roomRules": [
     "Правила этого раунда",

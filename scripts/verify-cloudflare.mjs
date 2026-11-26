@@ -35,7 +35,7 @@ async function request(path, body, token, status = 200) {
 try {
   const page = await worker.fetch(new Request('https://word-mine.test/'), { DB });
   const html = await page.text();
-  assert.match(html, /<title>Word Mine & Spy<\/title>/);
+  assert.match(html, /<title>Room6<\/title>/);
   assert.match(html, /data-language="kk"[^>]*>ҚҚ<\/button>/);
   const host = await request('/api/rooms', { name: 'Host', settings: { useDefaultWords: false, customWords: 'Самолёт' } }, null, 201);
   assert.match(host.room.code, /^[0-9]{6}$/);
